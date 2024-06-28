@@ -1,8 +1,13 @@
 const sharp = require('sharp');
+const { join, resolve } = require("path");
+const { promises: fs } = require("fs");
+const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
 
-async function createSpritesheet(images) {
+async function createSpritesheet(frames, bboxes) {
     const spritesheetWidth = 1920;
     const spritesheetHeight = 1200;
+
+    console.log(`Creating a blank white image of size ${spritesheetWidth}x${spritesheetHeight}`);
 
     let spritesheet = sharp({
         create: {
@@ -13,36 +18,87 @@ async function createSpritesheet(images) {
         }
     }).png();
 
-    const imagePromises = images.map((image, index) => {
-        const x = (index % 19) * 100;
-        const y = Math.floor(index / 19) * 100;
-        return {
-            input: Buffer.from(image, 'base64'),
-            top: y,
-            left: x
-        };
+    console.log(`Compositing ${frames.length} images onto the spritesheet`);
+
+    const imagePromises = frames.map(async (frame, index) => {
+        const [x, y, w, h] = bboxes[index];
+
+        try {
+            const metadata = await sharp(frame).metadata();
+
+            // Ensure the bounding box is square, using width as height
+            const size = Math.max(w, h);
+            const cx = x + w / 2;
+            const cy = y + h / 2;
+
+            // Calculate the new top-left corner to keep the bounding box centered
+            const left = Math.max(0, Math.min(cx - size / 2, metadata.width - size));
+            const top = Math.max(0, Math.min(cy - size / 2, metadata.height - size));
+            const extractWidth = Math.min(size, metadata.width - left);
+            const extractHeight = Math.min(size, metadata.height - top);
+
+            return sharp(frame)
+                .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(extractWidth), height: Math.round(extractHeight) })
+                .resize(100, 100)
+                .toBuffer()
+                .then(resizedBuffer => {
+                    const xPos = (index % 19) * 100;
+                    const yPos = Math.floor(index / 19) * 100;
+                    console.log(`Placing image ${index + 1} at position (${xPos}, ${yPos})`);
+                    return {
+                        input: resizedBuffer,
+                        top: yPos,
+                        left: xPos
+                    };
+                });
+        } catch (error) {
+            console.error(`Error processing image ${index + 1}:`, error);
+            return null;
+        }
     });
 
-    spritesheet = await spritesheet.composite(imagePromises).toBuffer();
-    await saveSpritesheet(spritesheet, images.length);
+    const compositeInputs = await Promise.all(imagePromises);
+
+    // Filter out any null entries due to errors
+    const validCompositeInputs = compositeInputs.filter(input => input !== null);
+
+    console.log('Starting the compositing process');
+    spritesheet = await spritesheet.composite(validCompositeInputs).toBuffer();
+    console.log('Spritesheet compositing complete');
+
+    console.log('Saving the spritesheet');
+    await saveSpritesheet(spritesheet, frames.length);
+    console.log('Spritesheet saved successfully');
 }
 
 async function saveSpritesheet(spritesheet, totalFrames) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const folderName = `X#${timestamp}`;
-    const spritesheetFolderPath = path.join(__dirname, 'database0', folderName, 'spritesheet');
+    try {
+        const folderName = '#X2024';
+        const spritesheetFolderPath = resolve(__dirname, '../database0', folderName, 'spritesheet');
 
-    await fs.mkdir(spritesheetFolderPath, { recursive: true });
+        console.log(`Creating directory: ${spritesheetFolderPath}`);
+        await fs.mkdir(spritesheetFolderPath, { recursive: true });
 
-    const fileName = `${totalFrames}.100.100.jpg`;
-    const filePath = path.join(spritesheetFolderPath, fileName);
+        const fileName = `${totalFrames}.100.100.jpg`;
+        const filePath = join(spritesheetFolderPath, fileName);
 
-    await sharp(spritesheet).jpeg().toFile(filePath);
+        console.log(`Saving spritesheet as ${fileName}`);
+        await sharp(spritesheet).jpeg().toFile(filePath);
 
-    await extractFirstImageAndGenerateDescriptor(filePath);
+        console.log(`Extracting first image and generating descriptor for ${fileName}`);
+        const descriptorGenerated = await extractFirstImageAndGenerateDescriptor(filePath);
 
-    return filePath;
+        if (descriptorGenerated) {
+            console.log(`Spritesheet and descriptor saved at: ${filePath}`);
+            return filePath;
+        } else {
+            // Clean up the created directories if no descriptor was generated
+            await fs.rm(spritesheetFolderPath, { recursive: true, force: true });
+            console.log(`No descriptor found. Cleaned up ${spritesheetFolderPath}`);
+        }
+    } catch (error) {
+        console.error('Error saving spritesheet:', error);
+    }
 }
-
 
 module.exports = createSpritesheet;

@@ -5,9 +5,10 @@ const bodyParser = require('body-parser');
 const { getDescriptor } = require('./getDescriptor.js');
 const { findSimilarImages } = require("./faceMatching.js");
 const createSpritesheet = require("./createSpritesheet");
+const multer = require('multer');
 
 const app = express();
-app.use(cors())
+app.use(cors());
 
 const port = 3000;
 let numVids;
@@ -18,7 +19,7 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.post('/grid-info', (req, res) => {
     try {
         const { numVideos } = req.body;
-        numVids = numVideos
+        numVids = numVideos;
         res.json({ message: 'Grid info received successfully' });
     } catch (error) {
         console.error('Error processing grid info:', error);
@@ -26,12 +27,11 @@ app.post('/grid-info', (req, res) => {
     }
 });
 
-
 // Route to receive imageDataURL and return the descriptor
 app.post('/get-matches', async (req, res) => {
     try {
-       const { image, numVids } = req.body;
-        console.log(numVids)
+        const { image, numVids } = req.body;
+        console.log(numVids);
 
         if (!numVids) {
             return res.status(400).json({ error: 'Number of videos in grid not provided' });
@@ -46,33 +46,45 @@ app.post('/get-matches', async (req, res) => {
             return res.status(404).json({ error: 'No face detected' });
         }
 
-        const { mostSimilar, leastSimilar } = await findSimilarImages(descriptor, numVids, path.join( 'database'));
+        const { mostSimilar, leastSimilar } = await findSimilarImages(descriptor, numVids, path.join('database'));
         res.json({ mostSimilar, leastSimilar });
     } catch (error) {
         console.error('Unexpected error processing image:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+const upload = multer({ storage: multer.memoryStorage() });
 
-app.post('/create-spritesheet', async (req, res) => {
+app.post('/create-spritesheet', upload.array('frames'), async (req, res) => {
     try {
-        const { frames } = req.body;
+        console.log('Received request');
+        const frames = req.files.map(file => file.buffer);
+        const bboxes = JSON.parse(req.body.bboxes);
 
-        if (!frames || !Array.isArray(frames)) {
-            return res.status(400).json({ error: 'Frames array not provided or invalid' });
+        console.log('bboxes:', bboxes);
+
+        if (!frames || !Array.isArray(frames) || !bboxes || !Array.isArray(bboxes)) {
+            console.log('Invalid frames or bboxes array');
+            return res.status(400).json({ error: 'Frames or bboxes array not provided or invalid' });
         }
+        if (frames.length !== bboxes.length) {
+            console.log('Frames and bboxes array length mismatch');
+            return res.status(400).json({ error: 'Frames and bboxes array length mismatch' });
+        }
+        console.log('Starting createSpritesheet');
 
-        await createSpritesheet(frames);
+        // Process the spritesheet asynchronously
+        await createSpritesheet(frames, bboxes);
 
-        res.set({
-            'Content-Type': 'image/png'
-        });
+        // Respond to the client after processing is done
+        res.status(200).send('Spritesheet created successfully');
 
     } catch (error) {
         console.error('Unexpected error creating spritesheet:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);

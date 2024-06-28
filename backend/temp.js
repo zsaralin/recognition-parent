@@ -28,5 +28,3 @@ async function moveInfoJsonOutside(directoryPath) {
 }
 
 const databasePath = path.join('../database0/');
-
-processSpriteSheets(databasePath);
