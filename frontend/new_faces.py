@@ -3,6 +3,8 @@ import numpy as np
 from backend_communicator import send_snapshot_to_server, send_frames_to_backend
 from logger_setup import logger
 import config
+import asyncio
+import threading
 
 curr_face = None
 no_face_counter = 0  # Counter for consecutive frames with no face detected
@@ -111,18 +113,30 @@ def send_frames():
     if not frame_buffer or len(frame_buffer) < MIN_FRAMES:
         return
 
+    def run_send_frames():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(send_frames_to_backend(frame_buffer, bbox_buffer))
+        loop.close()
+        run_send_frames_wrapper(success)
+
     print('Sending frames to server')
     logger.info("Sending frames to server")
     awaiting_backend_response = True  # Set the flag before sending the frames
-    success = send_frames_to_backend(frame_buffer, bbox_buffer)  # Include bbox_buffer here
+
+    thread = threading.Thread(target=run_send_frames)
+    thread.start()
+
+def run_send_frames_wrapper(success):
+    global previous_backend_success, awaiting_backend_response
     previous_backend_success = success  # Update the success status
     awaiting_backend_response = False  # Reset the flag after getting the response
 
     if success:
         print("Spritesheet created successfully.")
         logger.info("Spritesheet created successfully.")
-        frame_buffer = []  # Clear the buffer after successful sending to backend
-        bbox_buffer = []  # Clear the bounding box buffer after successful sending to backend
+        frame_buffer.clear()  # Clear the buffer after successful sending to backend
+        bbox_buffer.clear()  # Clear the bounding box buffer after successful sending to backend
     else:
         print("Failed to create spritesheet from server, will retry with the next frame.")
         logger.warning("Failed to create spritesheet from server, will retry with the next frame.")

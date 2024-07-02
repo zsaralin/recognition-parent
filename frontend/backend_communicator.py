@@ -6,7 +6,8 @@ import requests
 import base64
 import config
 from logger_setup import logger
-
+import httpx
+import asyncio
 BASE_SERVER_URL = "http://localhost:3000"
 
 def convert_image_to_data_url(image):
@@ -69,28 +70,40 @@ def load_frames(frame_paths):
 def convert_image_to_jpeg_bytes(image):
     _, buffer = cv2.imencode('.jpg', image)
     return buffer.tobytes()
-def send_frames_to_backend(frames, bboxes):
+
+async def send_frames_to_backend(frames, bboxes):
     url = f"{BASE_SERVER_URL}/create-spritesheet"
     files = []
     for i, frame in enumerate(frames):
         jpeg_bytes = convert_image_to_jpeg_bytes(frame)
-        files.append(('frames', ('frame%d.jpg' % i, jpeg_bytes, 'image/jpeg')))
+        files.append(('frames', (f'frame{i}.jpg', jpeg_bytes, 'image/jpeg')))
     data = {'bboxes': json.dumps(bboxes)}  # Convert bboxes to a JSON string
+    print('hola')
+    async with httpx.AsyncClient() as client:
+        try:
+            logger.info(f'Sending {len(frames)} frames to {url}')
+            print('Sending request to backend...')
+            response = await client.post(url, files=files, data=data)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            print('Request succeeded:', response.status_code)
+            return response.json()  # Or whatever the response should be processed as
+        except httpx.HTTPStatusError as exc:
+            logger.error(f"Error response {exc.response.status_code} while requesting {exc.request.url}")
+            print(f"HTTPStatusError: {exc.response.status_code} while requesting {exc.request.url}")
+        except httpx.RequestError as exc:
+            logger.error(f"An error occurred while requesting {exc.request.url}: {exc}")
+            print(f"RequestError: An error occurred while requesting {exc.request.url}: {exc}")
 
-    try:
-        logger.info(f'Sending {len(frames)} frames to {url}')
-        response = requests.post(url, files=files, data=data)
-
-        logger.info(f'Request headers: {response.request.headers}')
-        logger.info(f'Request payload size: {len(response.request.body) if response.request.body else 0} bytes')
-
-        if response.status_code == 200:
-            logger.info('Spritesheet created successfully.')
-            print('Spritesheet created successfully.')\
-
-        else:
-            logger.error(f'Failed to create spritesheet: {response.status_code}')
-            logger.error(f'Server response: {response.text}')
-    except Exception as e:
-        logger.exception("Error sending frames to backend: %s", e)
-        print(f"Error sending frames to backend: {e}")
+    #     logger.info(f'Request headers: {response.request.headers}')
+    #     logger.info(f'Request payload size: {len(response.request.body) if response.request.body else 0} bytes')
+    #
+    #     if response.status_code == 200:
+    #         logger.info('Spritesheet created successfully.')
+    #         print('Spritesheet created successfully.')\
+    #
+    #     else:
+    #         logger.error(f'Failed to create spritesheet: {response.status_code}')
+    #         logger.error(f'Server response: {response.text}')
+    # except Exception as e:
+    #     logger.exception("Error sending frames to backend: %s", e)
+    #     print(f"Error sending frames to backend: {e}")
