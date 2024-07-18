@@ -6,7 +6,8 @@ import config
 from logger_setup import logger
 from text_overlay import add_text_overlay
 import time
-import cv2 
+import cv2
+from one_euro import OneEuroFilter  # Import the One Euro filter
 
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QImage)
@@ -19,15 +20,10 @@ class VideoProcessor(QThread):
         self.cap = cv2.VideoCapture(self.camera_index)
         self.callback = callback
         self.bbox_multiplier = config.bbox_multiplier
-        self.initialized_kalman = False
 
         if not self.cap.isOpened():
             logger.error("Failed to open camera.")
             return
-
-        # Set higher resolution for better quality
-        # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.process_frame)
@@ -36,21 +32,14 @@ class VideoProcessor(QThread):
 
         self.stopped = False
 
-        # Initialize Kalman Filter for position and size
-        self.kalman = cv2.KalmanFilter(8, 4)
-        self.kalman.measurementMatrix = np.zeros((4, 8), np.float32)
-        self.kalman.measurementMatrix[0, 0] = 1
-        self.kalman.measurementMatrix[1, 1] = 1
-        self.kalman.measurementMatrix[2, 2] = 1
-        self.kalman.measurementMatrix[3, 3] = 1
-
-        self.kalman.transitionMatrix = np.eye(8, dtype=np.float32)
-        for i in range(4):
-            self.kalman.transitionMatrix[i, i + 4] = 1
-
-        # Adjust process and measurement noise for smoother response
-        self.kalman.processNoiseCov = np.eye(8, dtype=np.float32) * 1e-6  # Increased process noise
-        self.kalman.measurementNoiseCov = np.eye(4, dtype=np.float32) * 1  # Decreased measurement noise
+        # Initialize One Euro Filters for position and size
+        self.freq = 30.0  # Example frequency, you may need to adjust based on your application
+        self.min_cutoff = .001  # Higher value for more smoothing
+        self.beta = .0001  # Lower value for less reactivity to speed changes
+        self.euro_filter_cx = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
+        self.euro_filter_cy = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
+        self.euro_filter_w = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
+        self.euro_filter_h = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
 
         self.last_cropped_frame = None  # Proper initialization of the attribute
 
@@ -61,14 +50,17 @@ class VideoProcessor(QThread):
         # Initialize the active state tracking
         self.active_threshold = 10  # Define an appropriate threshold value
         self.is_active = False
-        self.saved_frame = None  # Variable to store the frame when Kalman filter becomes inactive
+        self.saved_frame = None  # Variable to store the frame when filter becomes inactive
 
         # Counter for consecutive frames without a face
         self.no_face_counter = 0
         self.no_face_threshold = 15  # Number of consecutive frames to consider no face detected
 
+        # Counter to delay saving the frame
+        self.save_frame_delay = 3
+        self.save_frame_counter = 0
+
     def run(self):
-        # This method is required to start the QThread event loop
         self.exec_()
 
     def process_frame(self):
@@ -79,16 +71,17 @@ class VideoProcessor(QThread):
             ret, frame = self.cap.read()
             if not ret or frame is None or frame.size == 0:
                 if self.saved_frame is not None:
+                    # Handle case where saved frame is used when no valid frame is available
                     resized_frame = self.resize_to_square(self.saved_frame, self.square_size)
-                    add_text_overlay(resized_frame)
+                    add_text_overlay(resized_frame, text="Live")
                     self.display_fps(resized_frame)
                     q_img = self.convert_to_qimage(resized_frame)
                     self.frame_ready.emit(q_img)
                 else:
                     logger.error("No valid frame available.")
-                return  # Exit if no valid frame is available
+                return
 
-            original_frame = frame.copy()  # Copy the full frame before processing
+            original_frame = frame.copy()
             frame, bbox = self.face_detector.detect_faces(frame, self.callback)
             if bbox:
                 x, y, w, h = bbox
@@ -98,65 +91,51 @@ class VideoProcessor(QThread):
                 w = int(w * self.bbox_multiplier)
                 h = int(h * self.bbox_multiplier)
 
-                if not self.initialized_kalman:
-                    # Initialize Kalman filter state
-                    self.kalman.statePre = np.array([cx, cy, w, h, 0, 0, 0, 0], dtype=np.float32)
-                    self.kalman.statePost = np.array([cx, cy, w, h, 0, 0, 0, 0], dtype=np.float32)
-                    self.initialized_kalman = True
-
-                # Update Kalman Filter
-                measurement = np.array([[np.float32(cx)], [np.float32(cy)], [np.float32(w)], [np.float32(h)]])
-                self.kalman.correct(measurement)
-                prediction = self.kalman.predict()
-                pred_cx, pred_cy = int(prediction[0]), int(prediction[1])
-                pred_w = int(prediction[2])
-                pred_h = int(prediction[3])
+                # Apply One Euro filter
+                current_time = time.time()
+                cx = self.euro_filter_cx.filter(cx, current_time)
+                cy = self.euro_filter_cy.filter(cy, current_time)
+                w = self.euro_filter_w.filter(w, current_time)
+                h = self.euro_filter_h.filter(h, current_time)
 
                 # Ensure dimensions are valid
-                pred_w = max(1, pred_w)
-                pred_h = max(1, pred_h)
+                w = max(1, int(w))
+                h = max(1, int(h))
+                cx = int(cx)
+                cy = int(cy)
 
-                # Extract frame based on Kalman prediction
-                cropped_frame = self.extract_frame(original_frame, pred_w, pred_h, pred_cx, pred_cy)
+                # Extract frame based on filtered prediction
+                cropped_frame = self.extract_frame(original_frame, w, h, cx, cy)
                 resized_frame = self.resize_to_square(cropped_frame, self.square_size)
 
-                # Update global reference to the last cropped frame with a face
                 self.last_cropped_frame = cropped_frame
 
-                # Add "LIVE" text overlay
                 add_text_overlay(resized_frame)
-
-                # Calculate and display FPS
                 self.display_fps(resized_frame)
-
-                # Emit the frame to be displayed
                 q_img = self.convert_to_qimage(resized_frame)
                 self.frame_ready.emit(q_img)
 
-                # Check if Kalman filter is still 'active'
-                distance = np.linalg.norm(np.array([cx, cy]) - np.array([pred_cx, pred_cy]))
+                # Check if the face movement distance exceeds threshold to determine activity
+                distance = np.linalg.norm(np.array([x + w // 2, y + h // 2]) - np.array([cx, cy]))
                 if distance > self.active_threshold:
                     self.is_active = True
+                    self.save_frame_counter = 0  # Reset counter when activity is detected
                 else:
                     if self.is_active:
-                        # Save the current frame when the Kalman filter first becomes inactive
-                        self.saved_frame = cropped_frame
+                        self.save_frame_counter += 1
+                        if self.save_frame_counter >= self.save_frame_delay:
+                            self.saved_frame = cropped_frame
+                            self.save_frame_counter = 0  # Reset counter after saving frame
                     self.is_active = False
 
-                # Reset no face counter since a face is detected
-                self.no_face_counter = 0
-
+                self.no_face_counter = 0  # Reset no face counter when a face is detected
             else:
                 self.no_face_counter += 1
                 if self.saved_frame is not None and self.no_face_counter >= self.no_face_threshold:
-                    # Add "LAST DETECTED" text overlay to the saved frame
+                    # Use saved frame when no face is detected for too long
                     resized_frame = self.resize_to_square(self.saved_frame, self.square_size)
                     add_text_overlay(resized_frame, text="Live")
-
-                    # Calculate and display FPS
                     self.display_fps(resized_frame)
-
-                    # Emit the saved frame
                     q_img = self.convert_to_qimage(resized_frame)
                     self.frame_ready.emit(q_img)
 
@@ -171,7 +150,6 @@ class VideoProcessor(QThread):
         x2 = min(frame.shape[1], cx + half_w)
         y2 = min(frame.shape[0], cy + half_h)
 
-        # Ensure the extracted frame is square and does not warp
         if (x2 - x1) != (y2 - y1):
             if (x2 - x1) > (y2 - y1):
                 diff = (x2 - x1) - (y2 - y1)
@@ -202,7 +180,7 @@ class VideoProcessor(QThread):
         return cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR)
 
     def convert_to_qimage(self, frame):
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Ensure the frame is in RGB format
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         q_img = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format_RGB888)
         return q_img
 
@@ -211,7 +189,6 @@ class VideoProcessor(QThread):
         self.fps = 1.0 / (current_time - self.prev_time)
         self.prev_time = current_time
 
-        # Add FPS text overlay on the top-left corner of the frame
         if config.show_fps:
             cv2.putText(frame, f'FPS: {int(self.fps)}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 

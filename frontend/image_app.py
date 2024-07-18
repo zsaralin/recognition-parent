@@ -71,7 +71,7 @@ class ImageApp(QWidget):
         window_height = largest_screen_height
 
         self.num_cols = config.num_cols
-        self.square_size = window_width / self.num_cols
+        self.square_size = window_width // self.num_cols
         print(f"Number of columns: {self.num_cols}, square size: {self.square_size}")
 
         self.num_rows = math.floor(window_height / self.square_size)
@@ -298,36 +298,38 @@ class ImageApp(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         total_height = self.num_rows * self.square_size
+        total_width = self.num_cols * self.square_size
         vertical_offset = (self.height() - total_height) // 2
+        horizontal_offset = (self.width() - total_width) // 2
         for row in range(self.num_rows):
             for col in range(self.num_cols):
-                x = col * self.square_size
+                x = col * self.square_size + horizontal_offset
                 y = row * self.square_size + vertical_offset
                 rect = QRectF(x, y, self.square_size, self.square_size)
                 painter.drawRect(rect)
-        self.update_labels(vertical_offset)
+        self.update_labels(vertical_offset, horizontal_offset)
 
-    def update_labels(self, vertical_offset):
+    def update_labels(self, vertical_offset, horizontal_offset):
         for index, label in enumerate(self.image_labels):
             if label in [self.video_label, self.least_similar_label, self.most_similar_label]:
                 continue
             row = index // self.num_cols
             col = index % self.num_cols
-            x = col * self.square_size
+            x = col * self.square_size + horizontal_offset
             y = row * self.square_size + vertical_offset
             label.move(int(x), int(y))
 
         center_row = self.num_rows // 2 + self.middle_y_pos
         center_col = self.num_cols // 2
 
-        video_x = (center_col - 1) * self.square_size
+        video_x = (center_col - 1) * self.square_size + horizontal_offset
         video_y = (center_row - 1) * self.square_size + vertical_offset
         self.video_label.move(int(video_x), int(video_y))
 
-        least_similar_x = (center_col - 4) * self.square_size
+        least_similar_x = (center_col - 4) * self.square_size + horizontal_offset
         least_similar_y = (center_row - 1) * self.square_size + vertical_offset
         self.least_similar_label.move(int(least_similar_x), int(least_similar_y))
 
-        most_similar_x = (center_col + 2) * self.square_size
+        most_similar_x = (center_col + 2) * self.square_size + horizontal_offset
         most_similar_y = (center_row - 1) * self.square_size + vertical_offset
         self.most_similar_label.move(int(most_similar_x), int(most_similar_y))

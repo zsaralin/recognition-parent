@@ -3,9 +3,10 @@ import numpy as np
 from backend_communicator import send_snapshot_to_server, send_frames_to_backend
 from logger_setup import logger
 import config
-import asyncio
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
 
 # Global variables
 curr_face = None
@@ -23,11 +24,12 @@ face_detected = False
 mediapipe_last_detection_time = 0
 mediapipe_valid_detection = False
 stop_threads = False
+executor = ThreadPoolExecutor(max_workers=5)
 
 def reset_face():
     global curr_face, detection_counter, frame_buffer, bbox_buffer, frames_sent
     curr_face = None
-    detection_counter = 10
+    detection_counter = 0
     frame_buffer = []
     bbox_buffer = []
     frames_sent = False
@@ -106,10 +108,7 @@ def set_curr_face(mediapipe_result, frame, callback):
             if len(frame_buffer) >= MIN_FRAMES and curr_face is not None and not frames_sent:
                 send_frames()
                 frames_sent = True
-            curr_face = None
-            no_face_counter = 0
-            frame_buffer = []
-            bbox_buffer = []
+            reset_face()
 
             if not log_no_face_detected:
                 print('No face detected for 2 consecutive frames, resetting curr_face.')
@@ -136,19 +135,27 @@ def update_face_detection(frame, cropped_face, new_face_detected, callback):
         print('Sending snapshot to server')
         logger.info("Sending snapshot to server")
         awaiting_backend_response = True
-        most_similar, least_similar, success = send_snapshot_to_server(frame, callback)
-        awaiting_backend_response = False
 
-        if success:
-            previous_backend_success = True
-            curr_face = cropped_face
-            callback(most_similar, least_similar)
-        else:
-            previous_backend_success = False
-            print("Failed to get matches from server, will retry with the next frame.")
-            logger.warning("Failed to get matches from server, will retry with the next frame.")
-        #     if face_detected:
-        #         update_face_detection(frame, cropped_face, new_face_detected, callback)
+        def backend_task():
+            most_similar, least_similar, success = send_snapshot_to_server(frame, callback)
+            return most_similar, least_similar, success
+
+        def backend_callback(future):
+            global previous_backend_success, awaiting_backend_response, curr_face
+            most_similar, least_similar, success = future.result()
+            awaiting_backend_response = False
+
+            if success:
+                previous_backend_success = True
+                curr_face = cropped_face
+                callback(most_similar, least_similar)
+            else:
+                previous_backend_success = False
+                print("Failed to get matches from server, will retry with the next frame.")
+                logger.warning("Failed to get matches from server, will retry with the next frame.")
+
+        future = executor.submit(backend_task)
+        future.add_done_callback(backend_callback)
 
 def send_frames():
     global frame_buffer, bbox_buffer, previous_backend_success, awaiting_backend_response
@@ -159,37 +166,35 @@ def send_frames():
     if not frame_buffer or len(frame_buffer) < MIN_FRAMES:
         return
 
-    def run_send_frames():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        success = loop.run_until_complete(send_frames_to_backend(frame_buffer, bbox_buffer))
-        loop.close()
-        run_send_frames_wrapper(success)
+    def backend_task():
+        return asyncio.run(send_frames_to_backend(frame_buffer, bbox_buffer))
+
+    def backend_callback(future):
+        global previous_backend_success, awaiting_backend_response, frame_buffer, bbox_buffer
+        success = future.result()
+        previous_backend_success = success
+        awaiting_backend_response = False
+
+        if success:
+            print("Spritesheet created successfully.")
+            logger.info("Spritesheet created successfully.")
+            frame_buffer.clear()
+            bbox_buffer.clear()
+        else:
+            print("Failed to create spritesheet from server, will retry with the next frame.")
+            logger.warning("Failed to create spritesheet from server, will retry with the next frame.")
 
     print('Sending frames to server')
     logger.info("Sending frames to server")
     awaiting_backend_response = True
 
-    thread = threading.Thread(target=run_send_frames)
-    thread.start()
-
-def run_send_frames_wrapper(success):
-    global previous_backend_success, awaiting_backend_response
-    previous_backend_success = success
-    awaiting_backend_response = False
-
-    if success:
-        print("Spritesheet created successfully.")
-        logger.info("Spritesheet created successfully.")
-        frame_buffer.clear()
-        bbox_buffer.clear()
-    else:
-        print("Failed to create spritesheet from server, will retry with the next frame.")
-        logger.warning("Failed to create spritesheet from server, will retry with the next frame.")
+    future = executor.submit(backend_task)
+    future.add_done_callback(backend_callback)
 
 def stop_all_threads():
     global stop_threads
     stop_threads = True
+    executor.shutdown(wait=False)
 
 # Ensure cleanup on application exit
 import atexit
