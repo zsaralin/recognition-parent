@@ -1,4 +1,3 @@
-# gui.py
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QLineEdit, QPushButton, QCheckBox
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
@@ -93,6 +92,10 @@ class SliderOverlay(QWidget):
         self.auto_update_checkbox.setChecked(config.auto_update)
         self.auto_update_checkbox.setFont(font)
 
+        self.show_saved_checkbox = QCheckBox('Show Saved Frame', self)  # New checkbox for showing saved frame
+        self.show_saved_checkbox.setChecked(config.show_saved_frame)
+        self.show_saved_checkbox.setFont(font)
+
         self.save_button = QPushButton('Save', self)
         self.save_button.setFont(font)
         self.save_button.setStyleSheet("""
@@ -144,6 +147,7 @@ class SliderOverlay(QWidget):
         layout.addWidget(self.create_sprites_checkbox)
         layout.addWidget(self.show_fps_checkbox)
         layout.addWidget(self.auto_update_checkbox)
+        layout.addWidget(self.show_saved_checkbox)  # Add the new checkbox to the layout
 
         layout.addWidget(self.save_button)
 
@@ -289,6 +293,7 @@ class SliderOverlay(QWidget):
         config.create_sprites = self.create_sprites_checkbox.isChecked()
         config.show_fps = self.show_fps_checkbox.isChecked()
         config.auto_update = self.auto_update_checkbox.isChecked()
+        config.show_saved_frame = self.show_saved_checkbox.isChecked()  # Save the new checkbox value
 
         # Save the updated config to file
         with open('config.py', 'w') as config_file:
@@ -303,6 +308,7 @@ class SliderOverlay(QWidget):
             config_file.write(f"create_sprites = {config.create_sprites}\n")
             config_file.write(f"show_fps = {config.show_fps}\n")
             config_file.write(f"auto_update = {config.auto_update}\n")
+            config_file.write(f"show_saved_frame = {config.show_saved_frame}\n")  # Write the new config value
 
         # Emit signal to update the config
         self.config_changed.emit()

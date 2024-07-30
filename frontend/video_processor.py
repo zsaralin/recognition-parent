@@ -78,7 +78,6 @@ class VideoProcessor(QThread):
     def run(self):
         self.exec_()
 
-
     def process_frame(self):
         if self.stopped:
             return
