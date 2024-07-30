@@ -35,7 +35,7 @@ class VideoProcessor(QThread):
         # Initialize One Euro Filters for position and size
         self.freq = 30.0  # Example frequency, you may need to adjust based on your application
         self.min_cutoff = .001  # Higher value for more smoothing
-        self.beta = .0001  # Lower value for less reactivity to speed changes
+        self.beta = .0001       # Lower value for less reactivity to speed changes
         self.euro_filter_cx = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
         self.euro_filter_cy = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
         self.euro_filter_w = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
@@ -54,14 +54,30 @@ class VideoProcessor(QThread):
 
         # Counter for consecutive frames without a face
         self.no_face_counter = 0
-        self.no_face_threshold = 15  # Number of consecutive frames to consider no face detected
+        self.no_face_threshold = 0  # Number of consecutive frames to consider no face detected
 
-        # Counter to delay saving the frame
-        self.save_frame_delay = 3
-        self.save_frame_counter = 0
+        # Tolerance for considering the frame as stable (e.g., in pixels)
+        self.stability_threshold = 15  # Adjust as needed
+
+        # Initialize previous bounding box center
+        self.previous_cx = None
+        self.previous_cy = None
+
+        # Threshold for detecting a significant jump indicating a new face
+        self.jump_threshold = 100  # Adjust as needed
+
+        # Buffer for storing recent bounding box centers
+        self.bbox_buffer = []
+        self.bbox_buffer_size = 10  # Increase the number of frames to consider for stability
+
+        # Timer for sending frame to backend
+        self.send_frame_timer = QTimer()
+        self.send_frame_timer.setSingleShot(True)
+        self.send_frame_timer.timeout.connect(self.send_frame_to_backend)
 
     def run(self):
         self.exec_()
+
 
     def process_frame(self):
         if self.stopped:
@@ -70,10 +86,9 @@ class VideoProcessor(QThread):
         try:
             ret, frame = self.cap.read()
             if not ret or frame is None or frame.size == 0:
-                if self.saved_frame is not None:
-                    # Handle case where saved frame is used when no valid frame is available
+                if config.show_saved_frame and self.saved_frame is not None:
                     resized_frame = self.resize_to_square(self.saved_frame, self.square_size)
-                    add_text_overlay(resized_frame, text="Live")
+                    add_text_overlay(resized_frame)
                     self.display_fps(resized_frame)
                     q_img = self.convert_to_qimage(resized_frame)
                     self.frame_ready.emit(q_img)
@@ -87,60 +102,97 @@ class VideoProcessor(QThread):
                 x, y, w, h = bbox
                 cx, cy = x + w // 2, y + h // 2
 
-                # Apply bounding box multiplier
-                w = int(w * self.bbox_multiplier)
-                h = int(h * self.bbox_multiplier)
+                # Check for significant jump indicating a new face
+                if self.previous_cx is not None and self.previous_cy is not None:
+                    if self.is_significant_jump(cx, cy, self.previous_cx, self.previous_cy, self.jump_threshold):
+                        bbox = None  # Manually set bbox to None to indicate a new face
+                        self.previous_cx = None
+                        self.previous_cy = None
 
-                # Apply One Euro filter
-                current_time = time.time()
-                cx = self.euro_filter_cx.filter(cx, current_time)
-                cy = self.euro_filter_cy.filter(cy, current_time)
-                w = self.euro_filter_w.filter(w, current_time)
-                h = self.euro_filter_h.filter(h, current_time)
+                if bbox is not None:
+                    # Update previous bounding box center
+                    self.previous_cx = cx
+                    self.previous_cy = cy
 
-                # Ensure dimensions are valid
-                w = max(1, int(w))
-                h = max(1, int(h))
-                cx = int(cx)
-                cy = int(cy)
+                    # Apply bounding box multiplier
+                    w = int(w * self.bbox_multiplier)
+                    h = int(h * self.bbox_multiplier)
 
-                # Extract frame based on filtered prediction
-                cropped_frame = self.extract_frame(original_frame, w, h, cx, cy)
-                resized_frame = self.resize_to_square(cropped_frame, self.square_size)
+                    # Apply One Euro filter
+                    current_time = time.time()
+                    filtered_cx = self.euro_filter_cx.filter(cx, current_time)
+                    filtered_cy = self.euro_filter_cy.filter(cy, current_time)
+                    filtered_w = self.euro_filter_w.filter(w, current_time)
+                    filtered_h = self.euro_filter_h.filter(h, current_time)
 
-                self.last_cropped_frame = cropped_frame
+                    # Ensure dimensions are valid
+                    filtered_w = max(1, int(filtered_w))
+                    filtered_h = max(1, int(filtered_h))
+                    filtered_cx = int(filtered_cx)
+                    filtered_cy = int(filtered_cy)
 
-                add_text_overlay(resized_frame)
-                self.display_fps(resized_frame)
-                q_img = self.convert_to_qimage(resized_frame)
-                self.frame_ready.emit(q_img)
+                    # Extract frame based on filtered prediction
+                    cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
+                    resized_frame = self.resize_to_square(cropped_frame, self.square_size)
 
-                # Check if the face movement distance exceeds threshold to determine activity
-                distance = np.linalg.norm(np.array([x + w // 2, y + h // 2]) - np.array([cx, cy]))
-                if distance > self.active_threshold:
-                    self.is_active = True
-                    self.save_frame_counter = 0  # Reset counter when activity is detected
-                else:
-                    if self.is_active:
-                        self.save_frame_counter += 1
-                        if self.save_frame_counter >= self.save_frame_delay:
-                            self.saved_frame = cropped_frame
-                            self.save_frame_counter = 0  # Reset counter after saving frame
-                    self.is_active = False
+                    self.last_cropped_frame = cropped_frame
+                    self.last_cropped_position = (filtered_cx, filtered_cy, filtered_w, filtered_h)  # Save the last position and size
 
-                self.no_face_counter = 0  # Reset no face counter when a face is detected
-            else:
-                self.no_face_counter += 1
-                if self.saved_frame is not None and self.no_face_counter >= self.no_face_threshold:
-                    # Use saved frame when no face is detected for too long
-                    resized_frame = self.resize_to_square(self.saved_frame, self.square_size)
-                    add_text_overlay(resized_frame, text="Live")
+                    add_text_overlay(resized_frame)
                     self.display_fps(resized_frame)
                     q_img = self.convert_to_qimage(resized_frame)
+
+                    # Emit the frame ready signal
                     self.frame_ready.emit(q_img)
+
+                    # Add the current bounding box center to the buffer
+                    self.bbox_buffer.append((filtered_cx, filtered_cy))
+                    if len(self.bbox_buffer) > self.bbox_buffer_size:
+                        self.bbox_buffer.pop(0)
+
+                    # Check if the bounding box is stable
+                    if self.is_bbox_stable():
+                        if not self.send_frame_timer.isActive():
+                            self.send_frame_timer.start(1000)  # Wait for 1 second before sending
+
+                    self.no_face_counter = 0
+
+            else:
+                self.no_face_counter += 1
+                if self.no_face_counter >= self.no_face_threshold:
+                    if self.last_cropped_frame is not None and self.last_cropped_position is not None:
+                        filtered_cx, filtered_cy, filtered_w, filtered_h = self.last_cropped_position
+                        cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
+                        resized_frame = self.resize_to_square(cropped_frame, self.square_size)
+
+                        add_text_overlay(resized_frame, text="Live")
+                        self.display_fps(resized_frame)
+                        q_img = self.convert_to_qimage(resized_frame)
+                        self.frame_ready.emit(q_img)
+                    else:
+                        if config.show_saved_frame and self.saved_frame is not None:
+                            resized_frame = self.resize_to_square(self.saved_frame, self.square_size)
+                            add_text_overlay(resized_frame)
+                            self.display_fps(resized_frame)
+                            q_img = self.convert_to_qimage(resized_frame)
+                            self.frame_ready.emit(q_img)
 
         except Exception as e:
             logger.exception(f"Error processing frame: {e}")
+
+    def is_bbox_stable(self):
+        if len(self.bbox_buffer) < self.bbox_buffer_size:
+            return False
+        avg_cx = sum(x for x, y in self.bbox_buffer) / self.bbox_buffer_size
+        avg_cy = sum(y for x, y in self.bbox_buffer) / self.bbox_buffer_size
+        return all(abs(cx - avg_cx) <= self.stability_threshold and abs(cy - avg_cy) <= self.stability_threshold
+                   for cx, cy in self.bbox_buffer)
+
+    def is_stable(self, cx, cy, filtered_cx, filtered_cy, threshold):
+        return abs(cx - filtered_cx) <= threshold and abs(cy - filtered_cy) <= threshold
+
+    def is_significant_jump(self, cx, cy, previous_cx, previous_cy, threshold):
+        return abs(cx - previous_cx) > threshold or abs(cy - previous_cy) > threshold
 
     def extract_frame(self, frame, w, h, cx, cy):
         half_w = w // 2
@@ -191,6 +243,15 @@ class VideoProcessor(QThread):
 
         if config.show_fps:
             cv2.putText(frame, f'FPS: {int(self.fps)}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
+    def send_frame_to_backend(self):
+        if self.last_cropped_frame is not None:
+            self.saved_frame = self.last_cropped_frame  # Set the saved frame to the last frame sent
+            self.send_to_backend(self.last_cropped_frame)
+
+    def send_to_backend(self, frame):
+        # Implement the logic to send the frame to the backend
+        pass
 
     def stop(self):
         print("VideoProcessor: Stopping")

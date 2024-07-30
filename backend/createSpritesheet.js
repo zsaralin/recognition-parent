@@ -6,7 +6,7 @@ const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
 async function createSpritesheet(frames, bboxes, res) {
     try {
         const spritesheetWidth = 1920;
-        const spritesheetHeight = 1200;
+        const spritesheetHeight = 10000;
 
         let spritesheet = sharp({
             create: {
@@ -58,6 +58,11 @@ async function createSpritesheet(frames, bboxes, res) {
         // Filter out any null entries due to errors
         const validCompositeInputs = compositeInputs.filter(input => input !== null);
 
+        if (validCompositeInputs.length === 0) {
+            console.log('No valid frames to create spritesheet');
+            return res.status(500).json({ success: false, error: 'No valid frames to create spritesheet' });
+        }
+
         spritesheet = await spritesheet.composite(validCompositeInputs).toBuffer();
 
         console.log('Saving the spritesheet');
@@ -76,6 +81,11 @@ async function createSpritesheet(frames, bboxes, res) {
 }
 
 async function saveSpritesheet(spritesheet, totalFrames) {
+    if (totalFrames === 0) {
+        console.log('No frames to save, skipping folder creation');
+        return null;
+    }
+
     try {
         const now = new Date();
         const folderName = `X#${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}-${String(now.getMilliseconds()).padStart(3, '0')}`;
@@ -101,6 +111,7 @@ async function saveSpritesheet(spritesheet, totalFrames) {
     } catch (error) {
         console.error('Error saving spritesheet:', error);
     }
+    return null;
 }
 
 module.exports = createSpritesheet;

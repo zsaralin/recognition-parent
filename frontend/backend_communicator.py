@@ -7,7 +7,7 @@ import config
 from logger_setup import logger
 import httpx
 import asyncio
-import os 
+import os
 BASE_SERVER_URL = "http://localhost:3000"
 
 def convert_image_to_data_url(image):
@@ -95,7 +95,7 @@ async def send_frames_to_backend(frames, bboxes):
             print(f"RequestError: An error occurred while requesting {exc.request.url}: {exc}")
 
 async def preload_images():
-    base_dir = "../database0"  # Adjust this path as necessary
+    base_dir = "..\\database0"  # Adjust this path as necessary
     preloaded_images = {}
     logger.info('Starting preload images')
     for root, _, files in os.walk(base_dir):

@@ -1,8 +1,8 @@
-gif_delay = 30
+gif_delay = 30 # 30fps, higher the slower
 num_cols = 21
 middle_y_pos = -5
-update_count = 50
-update_delay = 0
+update_count = 50 #num images that update on radial update together, higher the faster
+update_delay = 0 # delay between update_count images are updated
 update_int = 10
 bbox_multiplier = 1.5
 font_size = 0.8
