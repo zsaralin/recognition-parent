@@ -244,6 +244,7 @@ class ImageApp(QWidget):
                     if sprites:
                         self.sprites[grid_index] = sprites
                         self.image_labels[grid_index].setPixmap(self.cv2_to_qpixmap(sprites[0], int(self.square_size), int(self.square_size)))
+                        self.update_most_similar()
                 self.current_most_index += 1
                 updates_done += 1
 
@@ -257,6 +258,7 @@ class ImageApp(QWidget):
                     if sprites:
                         self.sprites[grid_index] = sprites
                         self.image_labels[grid_index].setPixmap(self.cv2_to_qpixmap(sprites[0], int(self.square_size), int(self.square_size)))
+                        self.update_least_similar()
                 self.current_least_index += 1
                 updates_done += 1
 
@@ -265,6 +267,28 @@ class ImageApp(QWidget):
             logger.info("All sprites have been batch loaded into the grid.")
         else:
             QTimer.singleShot(config.update_delay, self.update_next_sprites)  # Schedule next batch update in 50ms
+
+    def update_most_similar(self):
+        if self.most_similar_indices:
+            most_similar_index = self.most_similar_indices[0]
+            if most_similar_index < len(self.sprites) and len(self.sprites[most_similar_index]) > self.most_similar_sprite_index:
+                sprite = self.sprites[most_similar_index][self.most_similar_sprite_index]
+                high_res_sprite = self.resize_to_square(sprite, int(self.square_size * 3))
+                add_text_overlay(high_res_sprite, "Closest Match")
+                resized_sprite = self.resize_to_square(high_res_sprite, int(self.square_size * 3))
+                self.most_similar_label.setPixmap(self.cv2_to_qpixmap(resized_sprite, int(self.square_size * 3), int(self.square_size * 3)))
+                self.most_similar_sprite_index = (self.most_similar_sprite_index + 1) % len(self.sprites[most_similar_index])
+
+    def update_least_similar(self):
+        if self.least_similar_indices:
+            least_similar_index = self.least_similar_indices[0]
+            if least_similar_index < len(self.sprites) and len(self.sprites[least_similar_index]) > self.least_similar_sprite_index:
+                sprite = self.sprites[least_similar_index][self.least_similar_sprite_index]
+                high_res_sprite = self.resize_to_square(sprite, int(self.square_size * 3))
+                add_text_overlay(high_res_sprite, "Farthest Match")
+                resized_sprite = self.resize_to_square(high_res_sprite, int(self.square_size * 3))
+                self.least_similar_label.setPixmap(self.cv2_to_qpixmap(resized_sprite, int(self.square_size * 3), int(self.square_size * 3)))
+                self.least_similar_sprite_index = (self.least_similar_sprite_index + 1) % len(self.sprites[least_similar_index])
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_G:
