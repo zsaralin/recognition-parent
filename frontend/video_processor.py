@@ -8,6 +8,7 @@ from text_overlay import add_text_overlay
 import time
 import cv2
 from one_euro import OneEuroFilter  # Import the One Euro filter
+import asyncio
 
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QImage)
@@ -39,7 +40,7 @@ class VideoProcessor(QThread):
         self.euro_filter_cx = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
         self.euro_filter_cy = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
         self.euro_filter_w = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
-        self.euro_filter_h = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
+        self.euro_filter_h = OneEuroFilter(self.freq, min_cutoff=(self.min_cutoff), beta=self.beta)
 
         self.last_cropped_frame = None  # Proper initialization of the attribute
 
@@ -75,8 +76,12 @@ class VideoProcessor(QThread):
         self.send_frame_timer.setSingleShot(True)
         self.send_frame_timer.timeout.connect(self.send_frame_to_backend)
 
-    def run(self):
-        self.exec_()
+        # Event loop for asynchronous tasks
+        self.loop = asyncio.get_event_loop()
+
+    async def some_async_task(self):
+        # Your async task implementation
+        await asyncio.sleep(1)  # Example async operation
 
     def process_frame(self):
         if self.stopped:
@@ -176,6 +181,12 @@ class VideoProcessor(QThread):
                             q_img = self.convert_to_qimage(resized_frame)
                             self.frame_ready.emit(q_img)
 
+            # Example of scheduling an async task
+            if self.loop.is_running():
+                asyncio.create_task(self.some_async_task())
+            else:
+                self.loop.run_until_complete(self.some_async_task())
+
         except Exception as e:
             logger.exception(f"Error processing frame: {e}")
 
@@ -262,3 +273,4 @@ class VideoProcessor(QThread):
 
     def update_config(self):
         self.bbox_multiplier = config.bbox_multiplier
+

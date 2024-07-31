@@ -104,9 +104,17 @@ async function saveSpritesheet(spritesheet, totalFrames) {
             console.log(`Spritesheet and descriptor saved at: ${filePath}`);
             return filePath;
         } else {
-            // Clean up the created directories if no descriptor was generated
+            console.log(`No descriptor found. Attempting to clean up ${spritesheetFolderPath}`);
             await fs.rm(spritesheetFolderPath, { recursive: true, force: true });
-            console.log(`No descriptor found. Cleaned up ${spritesheetFolderPath}`);
+            console.log(`Cleaned up ${spritesheetFolderPath}`);
+
+            // Verify if the directory was actually removed
+            try {
+                await fs.access(spritesheetFolderPath);
+                console.log(`Directory ${spritesheetFolderPath} still exists.`);
+            } catch (err) {
+                console.log(`Directory ${spritesheetFolderPath} successfully removed.`);
+            }
         }
     } catch (error) {
         console.error('Error saving spritesheet:', error);

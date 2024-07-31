@@ -13,7 +13,7 @@ async function getDescriptor(imageDataURL) {
 
     // Process the image data and generate facial descriptors
     const tensor = await loadImageAsTensor(imageDataURL);
-    const detections = await faceapi.detectAllFaces(tensor).withFaceLandmarks().withFaceDescriptors();
+    const detections = await faceapi.detectAllFaces(tensor,  new faceapi.TinyFaceDetectorOptions(({ inputSize: 96 }))).withFaceLandmarks().withFaceDescriptors();
     if(detections && detections[0]) {
         return detections[0].descriptor;
     }
@@ -41,9 +41,9 @@ async function initializeFaceAPI() {
     const modelPath = './models';
     console.log("Loading models from disk...");
     await Promise.all([
-        // faceapi.nets.tinyFaceDetector.loadFromDisk(modelPath),
+        faceapi.nets.tinyFaceDetector.loadFromDisk(modelPath),
 
-        faceapi.nets.ssdMobilenetv1.loadFromDisk(modelPath),
+        // faceapi.nets.ssdMobilenetv1.loadFromDisk(modelPath),
         // faceapi.nets.ageGenderNet.loadFromDisk(modelPath),
         faceapi.nets.faceLandmark68Net.loadFromDisk(modelPath),
         faceapi.nets.faceRecognitionNet.loadFromDisk(modelPath),

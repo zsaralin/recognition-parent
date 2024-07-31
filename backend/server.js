@@ -90,7 +90,7 @@ app.post('/create-spritesheet', upload.array('frames'), async (req, res) => {
         console.log('Starting createSpritesheet');
 
         // Process the spritesheet asynchronously
-        await createSpritesheet(frames, bboxes, res);
+        createSpritesheet(frames, bboxes, res);
 
     } catch (error) {
         console.error('Unexpected error creating spritesheet:', error);

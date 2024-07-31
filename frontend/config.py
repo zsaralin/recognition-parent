@@ -1,4 +1,4 @@
-gif_delay = 30 # 30fps, higher the slower
+gif_delay = 30
 num_cols = 21
 middle_y_pos = -5
 update_count = 50
@@ -8,5 +8,5 @@ bbox_multiplier = 1.5
 font_size = 0.8
 create_sprites = True
 show_fps = False
-auto_update = True
-show_saved_frame = False
+auto_update = False
+show_saved_frame = True
