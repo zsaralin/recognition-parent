@@ -7,6 +7,7 @@ const { findSimilarImages } = require("./faceMatching.js");
 const createSpritesheet = require("./createSpritesheet");
 const multer = require('multer');
 const {preloadImages} = require('./preloadImages.js')
+const {addFrame, clearFrames, noFaceDetected} = require("./framesHandler");
 
 const app = express();
 app.use(cors());
@@ -114,3 +115,23 @@ app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
 
+app.post('/addFrame', async (req, res) => {
+    const { frame, bbox } = req.body;
+
+    try {
+        await addFrame(frame, bbox);
+        res.status(200).json({ success: true, message: 'Frame added' });
+    } catch (error) {
+        console.error('Error adding frame:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post('/noFaceDetected', async (req, res) => {
+    try {
+        const response = await noFaceDetected();
+        res.json(response);
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error creating spritesheet', error });
+    }
+});

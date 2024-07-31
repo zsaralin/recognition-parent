@@ -4,33 +4,34 @@ const fs = require('fs').promises;
 const path = require('path');
 
 async function extractFirstImageAndGenerateDescriptor(spritePath) {
-    const img = await canvas.loadImage(spritePath);
-    const spriteWidth = img.width;
-    const spriteHeight = img.height;
-    const imageSize = 100;
-    const imagesPerRow = 19;
-    const tempCanvas = canvas.createCanvas(imageSize, imageSize);
-    const ctx = tempCanvas.getContext('2d');
-    const descriptors = [];
+    try {
+        const img = await canvas.loadImage(spritePath);
+        const imageSize = 100;
+        const tempCanvas = canvas.createCanvas(imageSize, imageSize);
+        const ctx = tempCanvas.getContext('2d');
+        const descriptors = [];
 
-    for (let y = 0; y < spriteHeight; y += imageSize) {
-        for (let x = 0; x < Math.min(spriteWidth, imagesPerRow * imageSize); x += imageSize) {
+        // Process only the first row and the first 5 images
+        for (let x = 0; x < 500; x += imageSize) {
             ctx.clearRect(0, 0, imageSize, imageSize);
-            ctx.drawImage(img, x, y, imageSize, imageSize, 0, 0, imageSize, imageSize);
+            ctx.drawImage(img, x, 0, imageSize, imageSize, 0, 0, imageSize, imageSize);
             const dataURL = tempCanvas.toDataURL();
             const descriptor = await getDescriptor(dataURL);
             if (descriptor) {
                 descriptors.push(descriptor);
             }
         }
-    }
 
-    if (descriptors.length > 0) {
-        const avgDescriptor = computeAverageDescriptor(descriptors);
-        await saveDescriptor(spritePath, avgDescriptor);
-        return true;
-    } else {
-        console.log('No descriptors found');
+        if (descriptors.length > 0) {
+            const avgDescriptor = computeAverageDescriptor(descriptors);
+            await saveDescriptor(spritePath, avgDescriptor);
+            return true;
+        } else {
+            console.log('No descriptors found');
+            return false;
+        }
+    } catch (error) {
+        console.error('Error extracting descriptor:', error);
         return false;
     }
 }

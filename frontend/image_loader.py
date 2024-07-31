@@ -3,17 +3,25 @@ import config
 from logger_setup import logger
 import time
 import concurrent.futures
+import cv2
+import os
+
+from PyQt5.QtCore import QThread, pyqtSignal
+import config
+from logger_setup import logger
+import time
+import concurrent.futures
+from image_store import image_store  # Import the global instance
 
 class ImageLoader(QThread):
     all_sprites_loaded = pyqtSignal(list, list, list)  # Signal to emit when all images are loaded
     loading_completed = pyqtSignal()  # Signal to emit when loading is completed
 
-    def __init__(self, middle_row_offset=config.middle_y_pos, preloaded_images=None):  # Default to config value
+    def __init__(self, middle_row_offset=config.middle_y_pos):
         super().__init__()
         self.num_cols = config.num_cols
         self.num_rows = config.num_rows
         self.middle_row_offset = middle_row_offset
-        self.preloaded_images = preloaded_images or {}
         self.most_similar = []
         self.least_similar = []
 
@@ -97,11 +105,7 @@ class ImageLoader(QThread):
 
     def load_and_append_image(self, image_info, grid_index, sprites, indices_list):
         image_path = image_info['path']
-        if image_path not in self.preloaded_images:
-            logger.error(f"Image at path {image_path} is not preloaded")
-            return False
-
-        image = self.preloaded_images[image_path]
+        image = image_store.get_image(image_path)
         if image is None:
             logger.error(f"Preloaded image at path {image_path} is None")
             return False
@@ -122,3 +126,17 @@ class ImageLoader(QThread):
 
         indices_list.append(grid_index)
         return True
+
+    def load_new_spritesheet(self, spritesheet_path):
+        # Load the new spritesheet into preloaded images
+        if os.path.exists(spritesheet_path):
+            image = cv2.imread(spritesheet_path)
+            if image is not None:
+                image_store.preloaded_images[spritesheet_path] = image
+                logger.info(f"New spritesheet loaded: {spritesheet_path}")
+                self.set_data([{'path': spritesheet_path, 'numImages': self.num_rows * self.num_cols}], [])
+                self.run()  # Re-run the loader with the new spritesheet data
+            else:
+                logger.error(f"Failed to load new spritesheet from path: {spritesheet_path}")
+        else:
+            logger.error(f"Spritesheet path does not exist: {spritesheet_path}")

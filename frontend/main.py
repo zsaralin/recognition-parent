@@ -2,15 +2,16 @@ import sys
 import asyncio
 from PyQt5.QtWidgets import QApplication
 from image_app import ImageApp
-from backend_communicator import preload_images  # Assume this is the module where preload_images function is defined
+from image_store import image_store  # Import the global instance
 
 async def main():
     # Step 1: Preload images
-    preloaded_images = await preload_images()
+    base_dir = "..\\database0"  # Adjust this path as necessary
+    await asyncio.get_event_loop().run_in_executor(None, image_store.preload_images, base_dir)
 
     # Step 2: Create the Qt Application and the main window
     app = QApplication(sys.argv)
-    window = ImageApp(preloaded_images)  # Pass preloaded images to the ImageApp
+    window = ImageApp()  # No need to pass preloaded images, they are in the ImageStore
 
     # Step 3: Execute the application event loop
     exit_code = app.exec_()

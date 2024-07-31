@@ -3,8 +3,9 @@ const { join, resolve } = require("path");
 const { promises: fs } = require("fs");
 const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
 
-async function createSpritesheet(frames, bboxes, res) {
+async function createSpritesheet(frames, bboxes) {
     try {
+        console.log(frames.length)
         const spritesheetWidth = 1920;
         const spritesheetHeight = 10000;
 
@@ -60,7 +61,7 @@ async function createSpritesheet(frames, bboxes, res) {
 
         if (validCompositeInputs.length === 0) {
             console.log('No valid frames to create spritesheet');
-            return res.status(500).json({ success: false, error: 'No valid frames to create spritesheet' });
+            return null;
         }
 
         spritesheet = await spritesheet.composite(validCompositeInputs).toBuffer();
@@ -69,14 +70,13 @@ async function createSpritesheet(frames, bboxes, res) {
         const filePath = await saveSpritesheet(spritesheet, frames.length);
         if (filePath) {
             console.log('Spritesheet saved successfully');
-            return res.status(200).json({ success: true, filePath });
         } else {
             console.log('Failed to save spritesheet');
-            return res.status(500).json({ success: false, error: 'Failed to save spritesheet' });
         }
+        return filePath;
     } catch (error) {
         console.error('Error creating spritesheet:', error);
-        return res.status(500).json({ success: false, error: error.message });
+        return null;
     }
 }
 

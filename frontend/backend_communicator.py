@@ -5,6 +5,8 @@ import requests
 import base64
 import config
 from logger_setup import logger
+from image_store import image_store  # Import the global instance
+
 import httpx
 import asyncio
 import os
@@ -21,6 +23,7 @@ def convert_image_to_data_url(image):
     return data_url
 
 def send_snapshot_to_server(frame, callback):
+    print('SNEDING SNAPSHOTTTTTTTTTTTTTTTTTTTTTTT')
     if frame is None:
         logger.error("send_snapshot_to_server: frame is None")
         return None, None, False
@@ -65,49 +68,84 @@ def load_frames(frame_paths):
             frames.append(encoded_string)
     return frames
 
-def convert_image_to_jpeg_bytes(image):
-    _, buffer = cv2.imencode('.jpg', image)
-    return buffer.tobytes()
+# Example usage
+# async def preload_images():
+#     base_dir = "..\\database0"  # Adjust this path as necessary
+#     preloaded_images = {}
+#     logger.info('Starting preload images')
+#     for root, _, files in os.walk(base_dir):
+#         for file in files:
+#             if file.endswith(('.png', '.jpg', '.jpeg')):  # Adjust based on your image formats
+#                 image_path = os.path.join(root, file)
+#                 image = cv2.imread(image_path)
+#                 if image is not None:
+#                     preloaded_images[image_path] = image
+#                     # logger.info(f"Preloaded image: {image_path}")
+#                 else:
+#                     logger.error(f"Failed to load image from path: {image_path}")
+#     # print(preloaded_images.keys())  # Print the keys to verify the dictionary is populated
+#
+#     return preloaded_images
+def send_add_frame_request(frame, bbox):
+    if frame is None or bbox is None:
+        logger.error("send_add_frame_request: frame or bbox is None")
+        return False
 
-async def send_frames_to_backend(frames, bboxes):
-    if not config.create_sprites:
-        return  # Do nothing if create_sprites is False
+    image_data_url = convert_image_to_data_url(frame)
+    payload = {'frame': image_data_url, 'bbox': bbox}
+    url = f"{BASE_SERVER_URL}/addFrame"
 
-    url = f"{BASE_SERVER_URL}/create-spritesheet"
-    files = []
-    for i, frame in enumerate(frames):
-        jpeg_bytes = convert_image_to_jpeg_bytes(frame)
-        files.append(('frames', (f'frame{i}.jpg', jpeg_bytes, 'image/jpeg')))
-    data = {'bboxes': json.dumps(bboxes)}  # Convert bboxes to a JSON string
-    async with httpx.AsyncClient() as client:
+    try:
+        # logger.info(f"Sending request to {url} with payload: {payload}")
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            logger.info("Frame added successfully")
+            return True
+        else:
+            logger.error(f"Error adding frame: {response.status_code}, {response.text}")
+            return False
+    except Exception as e:
+        logger.exception("Error sending add frame request to server: %s", e)
+        return False
+
+import threading
+
+def send_no_face_detected_request():
+    url = f"{BASE_SERVER_URL}/noFaceDetected"
+    result = {}
+
+    def make_request():
+        nonlocal result
         try:
-            logger.info(f'Sending {len(frames)} frames to {url}')
-            print('Sending request to backend...')
-            response = await client.post(url, files=files, data=data)
-            response.raise_for_status()  # Raise an exception for HTTP errors
-            print('Request succeeded:', response.status_code)
-            return response.json()  # Or whatever the response should be processed as
-        except httpx.HTTPStatusError as exc:
-            logger.error(f"Error response {exc.response.status_code} while requesting {exc.request.url}")
-            print(f"HTTPStatusError: {exc.response.status_code} while requesting {exc.request.url}")
-        except httpx.RequestError as exc:
-            logger.error(f"An error occurred while requesting {exc.request.url}: {exc}")
-            print(f"RequestError: An error occurred while requesting {exc.request.url}: {exc}")
-
-async def preload_images():
-    base_dir = "..\\database0"  # Adjust this path as necessary
-    preloaded_images = {}
-    logger.info('Starting preload images')
-    for root, _, files in os.walk(base_dir):
-        for file in files:
-            if file.endswith(('.png', '.jpg', '.jpeg')):  # Adjust based on your image formats
-                image_path = os.path.join(root, file)
-                image = cv2.imread(image_path)
-                if image is not None:
-                    preloaded_images[image_path] = image
-                    # logger.info(f"Preloaded image: {image_path}")
+            response = requests.post(url)
+            if response.status_code == 200:
+                res_json = response.json()
+                print(res_json)
+                result['success'] = res_json.get('success', False)
+                if result['success']:
+                    file_path = res_json.get('filePath')
+                    result['filePath'] = file_path
+                    if file_path:
+                        logger.info(f"Received new spritesheet path: {file_path}")
+                        if image_store.add_image(file_path):
+                            logger.info(f"Image {file_path} added to preloaded images.")
+                        else:
+                            logger.error(f"Failed to add image {file_path} to preloaded images.")
                 else:
-                    logger.error(f"Failed to load image from path: {image_path}")
-    # print(preloaded_images.keys())  # Print the keys to verify the dictionary is populated
+                    logger.error("Spritesheet creation was not successful")
+            else:
+                result['success'] = False
+                logger.error(f"Error processing frames: {response.status_code}, {response.text}")
+        except Exception as e:
+            result['success'] = False
+            logger.exception("Error sending noFaceDetected request to server: %s", e)
+        finally:
+            handle_response(result)
 
-    return preloaded_images
+    def handle_response(response):
+        if response.get('success'):
+            print("Spritesheet created and image added successfully:", response.get('filePath'))
+        else:
+            print("Failed to create spritesheet or add image.")
+
+    threading.Thread(target=make_request).start()

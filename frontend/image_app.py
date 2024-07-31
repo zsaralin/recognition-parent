@@ -16,9 +16,8 @@ from logger_setup import logger
 from new_faces import stop_all_threads
 
 class ImageApp(QWidget):
-    def __init__(self, preloaded_images, update_count=config.update_count):
+    def __init__(self, update_count=config.update_count):
         super().__init__()
-        self.preloaded_images = preloaded_images  # Store preloaded images
         print("Initializing ImageApp.")
         self.sprites = []
         self.sprite_indices = []
@@ -67,7 +66,7 @@ class ImageApp(QWidget):
         largest_screen_width, largest_screen_height = max(screen_sizes, key=lambda s: s[0] * s[1])
         print(f"Largest screen size: width={largest_screen_width}, height={largest_screen_height}")
 
-        window_width = largest_screen_width/2
+        window_width = largest_screen_width / 2
         window_height = largest_screen_height
 
         self.num_cols = config.num_cols
@@ -217,7 +216,7 @@ class ImageApp(QWidget):
         self.least_similar = least_similar
 
         self.image_loader_thread = QThread()
-        self.image_loader = ImageLoader(self.middle_y_pos, self.preloaded_images)  # Pass preloaded images to ImageLoader
+        self.image_loader = ImageLoader(self.middle_y_pos)  # No need to pass preloaded images
         self.image_loader.moveToThread(self.image_loader_thread)
         self.image_loader.set_data(most_similar, least_similar)
         self.image_loader.all_sprites_loaded.connect(self.handle_all_sprites_loaded)
