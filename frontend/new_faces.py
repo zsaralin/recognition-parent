@@ -34,7 +34,6 @@ def reset_face():
     frames_sent = False
     frame_buffer = []
     bbox_buffer = []
-    logger.info("Face reset triggered.")
 
 def periodic_reset():
     if stop_threads:
@@ -106,7 +105,6 @@ def set_curr_face(mediapipe_result, frame, callback):
             send_no_face_detected_request()
 
             if not log_no_face_detected:
-                logger.info("No face detected for 10 consecutive frames, resetting curr_face.")
                 log_no_face_detected = True
 
 def update_face_detection(frame, cropped_face, new_face_detected, callback):
@@ -124,7 +122,6 @@ def update_face_detection(frame, cropped_face, new_face_detected, callback):
         return
 
     if new_face_detected or not previous_backend_success:
-        logger.info("Sending snapshot to server")
         awaiting_backend_response = True
 
         def backend_task():
@@ -159,4 +156,3 @@ atexit.register(stop_all_threads)
 # Start periodic reset if auto_update is enabled
 if config.auto_update:
     start_periodic_reset()
-    logger.info(f"Periodic reset started with interval {config.update_int} seconds.")

@@ -71,6 +71,7 @@ class ImageLoader(QThread):
             self.load_and_append_image(self.least_similar[1], center_row * self.num_cols + (center_col - 4), sprites, self.least_similar_indices)
 
         if len(self.most_similar) > 1:
+            print(self.most_similar[1])
             self.load_and_append_image(self.most_similar[1], center_row * self.num_cols + (center_col + 2), sprites, self.most_similar_indices)
 
         logger.info('Central images loaded')
@@ -107,7 +108,7 @@ class ImageLoader(QThread):
         image_path = image_info['path']
         image = image_store.get_image(image_path)
         if image is None:
-            logger.error(f"Preloaded image at path {image_path} is None")
+            print(f"Error: Preloaded image at path {image_path} is None")
             return False
 
         loaded_images = []
@@ -126,17 +127,3 @@ class ImageLoader(QThread):
 
         indices_list.append(grid_index)
         return True
-
-    def load_new_spritesheet(self, spritesheet_path):
-        # Load the new spritesheet into preloaded images
-        if os.path.exists(spritesheet_path):
-            image = cv2.imread(spritesheet_path)
-            if image is not None:
-                image_store.preloaded_images[spritesheet_path] = image
-                logger.info(f"New spritesheet loaded: {spritesheet_path}")
-                self.set_data([{'path': spritesheet_path, 'numImages': self.num_rows * self.num_cols}], [])
-                self.run()  # Re-run the loader with the new spritesheet data
-            else:
-                logger.error(f"Failed to load new spritesheet from path: {spritesheet_path}")
-        else:
-            logger.error(f"Spritesheet path does not exist: {spritesheet_path}")

@@ -28,7 +28,7 @@ class ImageApp(QWidget):
         self.initUI()
         self.update_count = update_count
         self.update_timer = QTimer(self)
-        self.update_batch_size = 200
+        self.update_batch_size = 400
         self.current_update_index = 0
 
         self.most_similar_indices = []
@@ -63,10 +63,11 @@ class ImageApp(QWidget):
         self.setStyleSheet("background-color: black; border: none; margin: 0; padding: 0;")
 
         screen_sizes = [(screen.size().width(), screen.size().height()) for screen in QApplication.screens()]
-        largest_screen_width, largest_screen_height = max(screen_sizes, key=lambda s: s[0] * s[1])
+        largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
         print(f"Largest screen size: width={largest_screen_width}, height={largest_screen_height}")
 
-        window_width = largest_screen_width / 2
+        window_width = largest_screen_width / 2 if config.demo else largest_screen_width
+
         window_height = largest_screen_height
 
         self.num_cols = config.num_cols
@@ -94,9 +95,13 @@ class ImageApp(QWidget):
 
         self.create_center_labels()
 
-        # self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setFixedSize(int(window_width), int(window_height))
-        self.show()
+        if not config.demo:
+            self.setWindowFlags(Qt.FramelessWindowHint)
+            self.showFullScreen()
+        else:
+            self.setFixedSize(int(window_width), int(window_height))
+            self.show()
+
         print("Main window displayed")
 
         QApplication.setOverrideCursor(Qt.BlankCursor)  # Hide the mouse cursor
@@ -154,34 +159,36 @@ class ImageApp(QWidget):
         self.image_loader_running = False  # Reset the flag after loading is completed
 
     def update_sprites(self):
-        for _ in range(self.update_batch_size):
-            if self.current_update_index < len(self.image_labels):
-                i = self.current_update_index
-                if i < len(self.sprites) and self.sprites[i]:
-                    if self.sprite_indices[i] < len(self.sprites[i]):
-                        self.image_labels[i].setPixmap(self.cv2_to_qpixmap(self.sprites[i][self.sprite_indices[i]], int(self.square_size), int(self.square_size)))
-                        self.sprite_indices[i] = (self.sprite_indices[i] + 1) % len(self.sprites[i])
-                self.current_update_index = (self.current_update_index + 1) % len(self.image_labels)
+        # Update main grid
+        for i in range(len(self.image_labels) - 3):  # Exclude the 3 special labels
+            if i < len(self.sprites) and self.sprites[i]:
+                self.sprite_indices[i] = (self.sprite_indices[i] + 1) % len(self.sprites[i])
+                self.image_labels[i].setPixmap(self.cv2_to_qpixmap(
+                    self.sprites[i][self.sprite_indices[i]],
+                    int(self.square_size),
+                    int(self.square_size)
+                ))
 
-        if self.most_similar_indices:
-            most_similar_index = self.most_similar_indices[0]
-            if most_similar_index < len(self.sprites) and len(self.sprites[most_similar_index]) > self.most_similar_sprite_index:
-                sprite = self.sprites[most_similar_index][self.most_similar_sprite_index]
-                high_res_sprite = self.resize_to_square(sprite, int(self.square_size * 3))
-                add_text_overlay(high_res_sprite, "Closest Match")
-                resized_sprite = self.resize_to_square(high_res_sprite, int(self.square_size * 3))
-                self.most_similar_label.setPixmap(self.cv2_to_qpixmap(resized_sprite, int(self.square_size * 3), int(self.square_size * 3)))
-                self.most_similar_sprite_index = (self.most_similar_sprite_index + 1) % len(self.sprites[most_similar_index])
+        # Update special labels separately
+        self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
+        self.update_special_label(self.least_similar_label, self.least_similar_indices, "least_similar")
 
-        if self.least_similar_indices:
-            least_similar_index = self.least_similar_indices[0]
-            if least_similar_index < len(self.sprites) and len(self.sprites[least_similar_index]) > self.least_similar_sprite_index:
-                sprite = self.sprites[least_similar_index][self.least_similar_sprite_index]
+    def update_special_label(self, label, indices, label_type):
+        if indices:
+            index = indices[0]
+            if index < len(self.sprites) and len(self.sprites[index]) > 0:
+                sprite_index = getattr(self, f"{label_type}_sprite_index")
+                sprite_index = (sprite_index + 1) % len(self.sprites[index])
+                setattr(self, f"{label_type}_sprite_index", sprite_index)
+
+                sprite = self.sprites[index][sprite_index]
                 high_res_sprite = self.resize_to_square(sprite, int(self.square_size * 3))
-                add_text_overlay(high_res_sprite, "Farthest Match")
-                resized_sprite = self.resize_to_square(high_res_sprite, int(self.square_size * 3))
-                self.least_similar_label.setPixmap(self.cv2_to_qpixmap(resized_sprite, int(self.square_size * 3), int(self.square_size * 3)))
-                self.least_similar_sprite_index = (self.least_similar_sprite_index + 1) % len(self.sprites[least_similar_index])
+                add_text_overlay(high_res_sprite, "Closest Match" if label_type == "most_similar" else "Farthest Match")
+                label.setPixmap(self.cv2_to_qpixmap(high_res_sprite, int(self.square_size * 3), int(self.square_size * 3)))
+            else:
+                logger.error(f"Index out of range or empty sprite list for {label_type}: {index}")
+        else:
+            logger.error(f"No indices available for {label_type}")
 
     def update_video_label(self, q_img):
         self.video_label.setPixmap(QPixmap.fromImage(q_img))

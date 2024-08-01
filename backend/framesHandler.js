@@ -3,7 +3,7 @@ const createSpritesheet = require("./createSpritesheet.js");
 let frames = [];
 let bboxes = [];
 const maxFrames = 100 * 19; // Set your desired maximum number of frames
-const minFrames = 4;
+const minFrames = 16;
 let spritesheetCreated = false;
 
 async function addFrame(frame, bbox) {
@@ -37,10 +37,23 @@ async function noFaceDetected() {
             let oldFrames = [...frames];
             let oldBboxes = [...bboxes];
 
+            // Remove the first four and last four frames and bboxes
+            if (oldFrames.length > 8) {
+                oldFrames = oldFrames.slice(4, oldFrames.length - 4);
+            } else {
+                oldFrames = [];
+            }
+
+            if (oldBboxes.length > 8) {
+                oldBboxes = oldBboxes.slice(4, oldBboxes.length - 4);
+            } else {
+                oldBboxes = [];
+            }
+
             // Clear frames and bboxes
             clearFrames();
 
-            // Use the copied arrays to create the spritesheet
+            // Use the modified arrays to create the spritesheet
             const filePath = await createSpritesheet(oldFrames, oldBboxes);
             return { success: !!filePath, filePath };
         } catch (error) {
@@ -49,9 +62,10 @@ async function noFaceDetected() {
         }
     } else {
         clearFrames();
-        return { success: false, message: 'Not enough frames to create spritesheet + ' + frames.length };
+        return { success: false, message: 'Not enough frames to create spritesheet. Frames count: ' + frames.length };
     }
 }
+
 
 function clearFrames() {
     frames = [];

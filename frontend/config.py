@@ -8,5 +8,6 @@ bbox_multiplier = 1.5
 font_size = 0.8
 create_sprites = True
 show_fps = False
-auto_update = False
+auto_update = True
 show_saved_frame = True
+demo = True  # Default value

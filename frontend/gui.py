@@ -161,7 +161,7 @@ class SliderOverlay(QWidget):
             slider.setValue(default_value)
         slider.setSingleStep(step)
         slider.valueChanged.connect(self.update_value_from_slider)
-        
+
         # Apply stylesheet to make the handle and groove smaller
         slider.setStyleSheet("""
             QSlider::groove:horizontal {
@@ -177,7 +177,7 @@ class SliderOverlay(QWidget):
                 border-radius: 5px; /* Rounded corners */
             }
         """)
-        
+
         return slider
 
     def create_double_slider(self, min_value, max_value, default_value=None, step=0.1):
@@ -187,7 +187,7 @@ class SliderOverlay(QWidget):
             slider.setValue(int(default_value * 10))
         slider.setSingleStep(int(step * 10))
         slider.valueChanged.connect(self.update_value_from_slider)
-        
+
         # Apply the same style to ensure consistency
         slider.setStyleSheet("""
             QSlider::groove:horizontal {
@@ -203,7 +203,7 @@ class SliderOverlay(QWidget):
                 border-radius: 5px; /* Rounded corners */
             }
         """)
-        
+
         return slider
 
     def create_input(self, min_value, max_value, is_double=False, only_odd=False):
@@ -216,7 +216,7 @@ class SliderOverlay(QWidget):
         input_box.setValidator(validator)
         input_box.returnPressed.connect(self.update_value_from_input)
         input_box.only_odd = only_odd  # Custom attribute to enforce odd numbers
-        
+
         # Apply styles to make it look like an input field
         input_box.setStyleSheet("""
             QLineEdit {
@@ -226,7 +226,7 @@ class SliderOverlay(QWidget):
                 border-radius: 3px;
             }
         """)
-        
+
         return input_box
 
     def update_value_from_slider(self):
@@ -295,6 +295,10 @@ class SliderOverlay(QWidget):
         config.auto_update = self.auto_update_checkbox.isChecked()
         config.show_saved_frame = self.show_saved_checkbox.isChecked()  # Save the new checkbox value
 
+        # Retain the demo value from the previous configuration
+        demo_value = getattr(config, 'demo', False)
+        config.demo = demo_value
+
         # Save the updated config to file
         with open('config.py', 'w') as config_file:
             config_file.write(f"gif_delay = {config.gif_delay}\n")
@@ -308,7 +312,8 @@ class SliderOverlay(QWidget):
             config_file.write(f"create_sprites = {config.create_sprites}\n")
             config_file.write(f"show_fps = {config.show_fps}\n")
             config_file.write(f"auto_update = {config.auto_update}\n")
-            config_file.write(f"show_saved_frame = {config.show_saved_frame}\n")  # Write the new config value
+            config_file.write(f"show_saved_frame = {config.show_saved_frame}\n")
+            config_file.write(f"demo = {config.demo}\n")  # Write the demo config value
 
         # Emit signal to update the config
         self.config_changed.emit()

@@ -1,5 +1,5 @@
 const sharp = require('sharp');
-const { join, resolve } = require("path");
+const { join, resolve, relative } = require("path");
 const { promises: fs } = require("fs");
 const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
 
@@ -102,7 +102,10 @@ async function saveSpritesheet(spritesheet, totalFrames) {
 
         if (descriptorGenerated) {
             console.log(`Spritesheet and descriptor saved at: ${filePath}`);
-            return filePath;
+            // Return the relative path instead of the absolute path
+            const relativePath = relative(resolve(__dirname, '../database0'), filePath);
+            console.log(`Relative path saved: ${relativePath}`);
+            return relativePath;
         } else {
             console.log(`No descriptor found. Attempting to clean up ${spritesheetFolderPath}`);
             await fs.rm(spritesheetFolderPath, { recursive: true, force: true });

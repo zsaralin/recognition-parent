@@ -100,6 +100,10 @@ class VideoProcessor(QThread):
                     logger.error("No valid frame available.")
                 return
 
+            # Flip the frame vertically if not in demo mode
+            if not config.demo:
+                frame = cv2.flip(frame, 0)
+
             original_frame = frame.copy()
             frame, bbox = self.face_detector.detect_faces(frame, self.callback)
             if bbox:
@@ -205,36 +209,27 @@ class VideoProcessor(QThread):
         return abs(cx - previous_cx) > threshold or abs(cy - previous_cy) > threshold
 
     def extract_frame(self, frame, w, h, cx, cy):
-        half_w = w // 2
-        half_h = h // 2
-        x1 = max(0, cx - half_w)
-        y1 = max(0, cy - half_h)
-        x2 = min(frame.shape[1], cx + half_w)
-        y2 = min(frame.shape[0], cy + half_h)
+        frame_height, frame_width = frame.shape[:2]
 
-        if (x2 - x1) != (y2 - y1):
-            if (x2 - x1) > (y2 - y1):
-                diff = (x2 - x1) - (y2 - y1)
-                if y1 - diff // 2 < 0:
-                    y2 = y1 + (x2 - x1)
-                    y1 = 0
-                elif y2 + diff // 2 > frame.shape[0]:
-                    y1 = y2 - (x2 - x1)
-                    y2 = frame.shape[0]
-                else:
-                    y1 = max(0, y1 - diff // 2)
-                    y2 = min(frame.shape[0], y2 + diff // 2)
-            else:
-                diff = (y2 - y1) - (x2 - x1)
-                if x1 - diff // 2 < 0:
-                    x2 = x1 + (y2 - y1)
-                    x1 = 0
-                elif x2 + diff // 2 > frame.shape[1]:
-                    x1 = x2 - (y2 - y1)
-                    x2 = frame.shape[1]
-                else:
-                    x1 = max(0, x1 - diff // 2)
-                    x2 = min(frame.shape[1], x2 + diff // 2)
+        # Ensure square crop
+        size = max(w, h)
+
+        # Calculate crop boundaries
+        x1 = max(0, cx - size // 2)
+        y1 = max(0, cy - size // 2)
+        x2 = min(frame_width, x1 + size)
+        y2 = min(frame_height, y1 + size)
+
+        # Adjust if crop goes over right or bottom edge
+        if x2 - x1 < size:
+            x1 = max(0, x2 - size)
+        if y2 - y1 < size:
+            y1 = max(0, y2 - size)
+
+        # Final adjustment to ensure square crop
+        crop_size = min(x2 - x1, y2 - y1)
+        x2 = x1 + crop_size
+        y2 = y1 + crop_size
 
         return frame[y1:y2, x1:x2]
 
@@ -273,4 +268,3 @@ class VideoProcessor(QThread):
 
     def update_config(self):
         self.bbox_multiplier = config.bbox_multiplier
-
