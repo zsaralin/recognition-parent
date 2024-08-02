@@ -17,8 +17,6 @@ awaiting_backend_response = False
 detection_counter = 0
 frame_buffer = []
 bbox_buffer = []
-MAX_FRAMES = 12 * 19
-MIN_FRAMES = 4
 frames_sent = False
 log_no_face_detected = False
 face_detected = False
@@ -77,9 +75,10 @@ def set_curr_face(mediapipe_result, frame, callback):
         y = max(0, min(cy - h // 2, ih - h))
 
         cropped_face = frame[y:y + h, x:x + w]
-        send_add_frame_request(cropped_face, (x, y, w, h))
 
         if curr_face is None and detection_counter >= 10:
+            print('new face')
+
             curr_face = cropped_face
             detection_counter = 0
             frames_sent = False
@@ -88,19 +87,13 @@ def set_curr_face(mediapipe_result, frame, callback):
 
             update_face_detection(frame, cropped_face, True, callback)
 
-        if curr_face is not None:
-            cropped_face = cv2.resize(cropped_face, (100, 100))
-
-            # if len(frame_buffer) < MAX_FRAMES:
-            #     frame_buffer.append(cropped_face)
-            #     bbox_buffer.append((x, y, w, h))
-
     else:
         face_detected = False
         no_face_counter += 1
         detection_counter = 0
         mediapipe_valid_detection = False
-        if no_face_counter >= 10:
+        if no_face_counter >= 1:
+            print('no face')
             reset_face()
             send_no_face_detected_request()
 

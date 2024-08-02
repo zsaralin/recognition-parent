@@ -5,12 +5,6 @@ import time
 import concurrent.futures
 import cv2
 import os
-
-from PyQt5.QtCore import QThread, pyqtSignal
-import config
-from logger_setup import logger
-import time
-import concurrent.futures
 from image_store import image_store  # Import the global instance
 
 class ImageLoader(QThread):

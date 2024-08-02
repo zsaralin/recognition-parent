@@ -15,7 +15,7 @@ class ImageStore:
                     image = cv2.imread(image_path)
                     if image is not None:
                         self.preloaded_images[image_path] = image
-                        # logger.info(f"Preloaded image: {image_path}")
+                        print(f"Preloaded image: {image_path}")
                     else:
                         logger.error(f"Failed to load image from path: {image_path}")
         logger.info('Preload images completed')
@@ -25,7 +25,7 @@ class ImageStore:
         return self.preloaded_images.get(image_path)
 
     def add_image(self, image_path):
-        image_path = os.path.join("..", "database0", image_path)
+        image_path = os.path.join("..", "databases", "database0", image_path)
         logger.info(f"Trying to add image from path: {image_path}")
         if os.path.exists(image_path):
             image = cv2.imread(image_path)

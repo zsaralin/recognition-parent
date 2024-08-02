@@ -68,9 +68,4 @@ class DriveCapacity {
     }
 }
 
-// Example usage
-// const localRecordingsFolder = './database0';  // Use forward slashes for Unix-like systems
-// const limit = 80; // Set your limit for the disk usage percentage
-
-// const driveCapacity = new DriveCapacity(localRecordingsFolder, limit);
-// driveCapacity.deleteExcess();
+module.exports = DriveCapacity;

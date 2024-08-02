@@ -8,6 +8,8 @@ from logger_setup import logger
 from image_store import image_store  # Import the global instance
 import threading
 import os
+awaiting_response = False
+
 
 BASE_SERVER_URL = "http://localhost:3000"
 
@@ -25,7 +27,14 @@ def convert_image_to_data_url(image):
         logger.exception("Error in convert_image_to_data_url: %s", e)
         return None
 
+
 def send_snapshot_to_server(frame, callback):
+    global awaiting_response
+
+    if awaiting_response:
+        print("Already waiting for a response. Skipping this request.")
+        return None, None, False
+
     print('SNEDING SNAPSHOTTTTTTTTTTTTTTTTTTTTTTT')
     if frame is None:
         logger.error("send_snapshot_to_server: frame is None")
@@ -40,6 +49,7 @@ def send_snapshot_to_server(frame, callback):
     url = f"{BASE_SERVER_URL}/get-matches"
 
     try:
+        awaiting_response = True  # Set the flag to True to indicate a request is being processed
         response = requests.post(url, json=payload)
         if response.status_code == 200:
             result = response.json()
@@ -48,18 +58,22 @@ def send_snapshot_to_server(frame, callback):
             print(most_similar[0])
             if most_similar is None or least_similar is None:
                 logger.error("Received None for most_similar or least_similar")
+                awaiting_response = False
                 return None, None, False
 
             # Call the callback function with the results
             callback(most_similar, least_similar)
+            awaiting_response = False  # Reset the flag after processing the response
             return most_similar, least_similar, True
         else:
             logger.error(f"Failed to get matches from server: {response.status_code}")
             logger.error(f"Server response: {response.text}")
+            awaiting_response = False  # Reset the flag if there's an error
             if response.status_code == 404 and "No face detected" in response.text:
                 return None, None, False
     except Exception as e:
         logger.exception("Error sending snapshot to server: %s", e)
+        awaiting_response = False  # Reset the flag if there's an exception
 
     return None, None, False
 

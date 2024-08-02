@@ -8,6 +8,7 @@ const createSpritesheet = require("./createSpritesheet");
 const multer = require('multer');
 const {preloadImages} = require('./preloadImages.js')
 const {addFrame, clearFrames, noFaceDetected} = require("./framesHandler");
+const {setCameraControl} = require("./uvcControl");
 
 const app = express();
 app.use(cors());
@@ -134,4 +135,20 @@ app.post('/noFaceDetected', async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error creating spritesheet', error });
     }
+});
+
+app.post('/set-camera-control', (req, res) => {
+    const { controlName, value } = req.body;
+    if (!controlName || value === undefined) {
+        return res.status(400).send('Missing control name or value');
+    }
+
+    setCameraControl(controlName, value, (err) => {
+        if (err) {
+            console.error(`Error setting ${controlName}:`, err);
+            return res.status(500).send(`Error setting ${controlName}`);
+        } else {
+            return res.send(`${controlName} set to ${value}`);
+        }
+    });
 });

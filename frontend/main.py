@@ -3,10 +3,15 @@ import asyncio
 from PyQt5.QtWidgets import QApplication
 from image_app import ImageApp
 from image_store import image_store  # Import the global instance
+import config
 
 async def main():
     # Step 1: Preload images
-    base_dir = "..\\database0"  # Adjust this path as necessary
+    if config.demo:
+        base_dir = "..\\databases\\database0"  # Use the demo directory
+    else:
+        base_dir = "../databases/database0"  # Adjust this path as necessary
+
     await asyncio.get_event_loop().run_in_executor(None, image_store.preload_images, base_dir)
 
     # Step 2: Create the Qt Application and the main window

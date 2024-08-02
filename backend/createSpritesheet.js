@@ -2,12 +2,35 @@ const sharp = require('sharp');
 const { join, resolve, relative } = require("path");
 const { promises: fs } = require("fs");
 const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
+const DriveCapacity = require('./driveCapacity');
 
-async function createSpritesheet(frames, bboxes) {
+const checkDriveCapacity = false; // Set this to false to disable the drive capacity check
+
+async function createSpritesheet(frames) {
     try {
-        console.log(frames.length)
+        if (checkDriveCapacity) {
+            const localRecordingsFolder = resolve(__dirname, '../databases/database0'); // Use forward slashes for Unix-like systems
+            const limit = 80; // Set your limit for the disk usage percentage
+
+            const driveCapacity = new DriveCapacity(localRecordingsFolder, limit);
+
+            // Check if the drive is full before proceeding
+            const isFull = await driveCapacity.checkCapacity(limit);
+            if (isFull) {
+                console.log("Drive capacity exceeded, cannot save new spritesheet.");
+                return null;
+            }
+        }
+
+        console.log(frames.length);
         const spritesheetWidth = 1920;
-        const spritesheetHeight = 10000;
+        const maxSpritesheetHeight = 10000;
+        const framesPerRow = 19;
+        const frameHeight = 100;
+
+        // Calculate the required height for the spritesheet
+        const rows = Math.ceil(frames.length / framesPerRow);
+        const spritesheetHeight = Math.min(rows * frameHeight, maxSpritesheetHeight);
 
         let spritesheet = sharp({
             create: {
@@ -19,29 +42,13 @@ async function createSpritesheet(frames, bboxes) {
         }).png();
 
         const imagePromises = frames.map(async (frame, index) => {
-            const [x, y, w, h] = bboxes[index];
-
             try {
-                const metadata = await sharp(frame).metadata();
-
-                // Ensure the bounding box is square, using width as height
-                const size = Math.max(w, h);
-                const cx = x + w / 2;
-                const cy = y + h / 2;
-
-                // Calculate the new top-left corner to keep the bounding box centered
-                const left = Math.max(0, Math.min(cx - size / 2, metadata.width - size));
-                const top = Math.max(0, Math.min(cy - size / 2, metadata.height - size));
-                const extractWidth = Math.min(size, metadata.width - left);
-                const extractHeight = Math.min(size, metadata.height - top);
-
                 return sharp(frame)
-                    .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(extractWidth), height: Math.round(extractHeight) })
                     .resize(100, 100)
                     .toBuffer()
                     .then(resizedBuffer => {
-                        const xPos = (index % 19) * 100;
-                        const yPos = Math.floor(index / 19) * 100;
+                        const xPos = (index % framesPerRow) * 100;
+                        const yPos = Math.floor(index / framesPerRow) * 100;
                         return {
                             input: resizedBuffer,
                             top: yPos,
@@ -89,7 +96,7 @@ async function saveSpritesheet(spritesheet, totalFrames) {
     try {
         const now = new Date();
         const folderName = `X#${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}-${String(now.getMilliseconds()).padStart(3, '0')}`;
-        const spritesheetFolderPath = resolve(__dirname, '../database0', folderName, 'spritesheet');
+        const spritesheetFolderPath = resolve(__dirname, '../databases/database0', folderName, 'spritesheet');
 
         await fs.mkdir(spritesheetFolderPath, { recursive: true });
 
@@ -103,7 +110,7 @@ async function saveSpritesheet(spritesheet, totalFrames) {
         if (descriptorGenerated) {
             console.log(`Spritesheet and descriptor saved at: ${filePath}`);
             // Return the relative path instead of the absolute path
-            const relativePath = relative(resolve(__dirname, '../database0'), filePath);
+            const relativePath = relative(resolve(__dirname, '../databases/database0'), filePath);
             console.log(`Relative path saved: ${relativePath}`);
             return relativePath;
         } else {

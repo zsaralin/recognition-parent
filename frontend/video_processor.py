@@ -9,6 +9,7 @@ import time
 import cv2
 from one_euro import OneEuroFilter  # Import the One Euro filter
 import asyncio
+from backend_communicator import send_add_frame_request
 
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QImage)
@@ -64,24 +65,9 @@ class VideoProcessor(QThread):
         self.previous_cx = None
         self.previous_cy = None
 
-        # Threshold for detecting a significant jump indicating a new face
-        self.jump_threshold = 100  # Adjust as needed
-
         # Buffer for storing recent bounding box centers
         self.bbox_buffer = []
         self.bbox_buffer_size = 10  # Increase the number of frames to consider for stability
-
-        # Timer for sending frame to backend
-        self.send_frame_timer = QTimer()
-        self.send_frame_timer.setSingleShot(True)
-        self.send_frame_timer.timeout.connect(self.send_frame_to_backend)
-
-        # Event loop for asynchronous tasks
-        self.loop = asyncio.get_event_loop()
-
-    async def some_async_task(self):
-        # Your async task implementation
-        await asyncio.sleep(1)  # Example async operation
 
     def process_frame(self):
         if self.stopped:
@@ -90,14 +76,7 @@ class VideoProcessor(QThread):
         try:
             ret, frame = self.cap.read()
             if not ret or frame is None or frame.size == 0:
-                if config.show_saved_frame and self.saved_frame is not None:
-                    resized_frame = self.resize_to_square(self.saved_frame, self.square_size)
-                    add_text_overlay(resized_frame)
-                    self.display_fps(resized_frame)
-                    q_img = self.convert_to_qimage(resized_frame)
-                    self.frame_ready.emit(q_img)
-                else:
-                    logger.error("No valid frame available.")
+                logger.error("No valid frame available.")
                 return
 
             # Flip the frame vertically if not in demo mode
@@ -106,90 +85,56 @@ class VideoProcessor(QThread):
 
             original_frame = frame.copy()
             frame, bbox = self.face_detector.detect_faces(frame, self.callback)
+
+            current_time = time.time()
+
             if bbox:
                 x, y, w, h = bbox
                 cx, cy = x + w // 2, y + h // 2
 
-                # Check for significant jump indicating a new face
-                if self.previous_cx is not None and self.previous_cy is not None:
-                    if self.is_significant_jump(cx, cy, self.previous_cx, self.previous_cy, self.jump_threshold):
-                        bbox = None  # Manually set bbox to None to indicate a new face
-                        self.previous_cx = None
-                        self.previous_cy = None
+                # Apply bounding box multiplier
+                w = int(w * self.bbox_multiplier)
+                h = int(h * self.bbox_multiplier)
 
-                if bbox is not None:
-                    # Update previous bounding box center
-                    self.previous_cx = cx
-                    self.previous_cy = cy
+                # Apply One Euro filter
+                filtered_cx = self.euro_filter_cx.filter(cx, current_time)
+                filtered_cy = self.euro_filter_cy.filter(cy, current_time)
+                filtered_w = self.euro_filter_w.filter(w, current_time)
+                filtered_h = self.euro_filter_h.filter(h, current_time)
 
-                    # Apply bounding box multiplier
-                    w = int(w * self.bbox_multiplier)
-                    h = int(h * self.bbox_multiplier)
+                # Ensure dimensions are valid
+                filtered_w = max(1, int(filtered_w))
+                filtered_h = max(1, int(filtered_h))
+                filtered_cx = int(filtered_cx)
+                filtered_cy = int(filtered_cy)
 
-                    # Apply One Euro filter
-                    current_time = time.time()
-                    filtered_cx = self.euro_filter_cx.filter(cx, current_time)
-                    filtered_cy = self.euro_filter_cy.filter(cy, current_time)
-                    filtered_w = self.euro_filter_w.filter(w, current_time)
-                    filtered_h = self.euro_filter_h.filter(h, current_time)
-
-                    # Ensure dimensions are valid
-                    filtered_w = max(1, int(filtered_w))
-                    filtered_h = max(1, int(filtered_h))
-                    filtered_cx = int(filtered_cx)
-                    filtered_cy = int(filtered_cy)
-
-                    # Extract frame based on filtered prediction
-                    cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
-                    resized_frame = self.resize_to_square(cropped_frame, self.square_size)
-
-                    self.last_cropped_frame = cropped_frame
-                    self.last_cropped_position = (filtered_cx, filtered_cy, filtered_w, filtered_h)  # Save the last position and size
-
-                    add_text_overlay(resized_frame)
-                    self.display_fps(resized_frame)
-                    q_img = self.convert_to_qimage(resized_frame)
-
-                    # Emit the frame ready signal
-                    self.frame_ready.emit(q_img)
-
-                    # Add the current bounding box center to the buffer
-                    self.bbox_buffer.append((filtered_cx, filtered_cy))
-                    if len(self.bbox_buffer) > self.bbox_buffer_size:
-                        self.bbox_buffer.pop(0)
-
-                    # Check if the bounding box is stable
-                    if self.is_bbox_stable():
-                        if not self.send_frame_timer.isActive():
-                            self.send_frame_timer.start(1000)  # Wait for 1 second before sending
-
-                    self.no_face_counter = 0
-
+                self.last_cropped_position = (filtered_cx, filtered_cy, filtered_w, filtered_h)
+                self.no_face_counter = 0
             else:
                 self.no_face_counter += 1
-                if self.no_face_counter >= self.no_face_threshold:
-                    if self.last_cropped_frame is not None and self.last_cropped_position is not None:
-                        filtered_cx, filtered_cy, filtered_w, filtered_h = self.last_cropped_position
-                        cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
-                        resized_frame = self.resize_to_square(cropped_frame, self.square_size)
 
-                        add_text_overlay(resized_frame, text="Live")
-                        self.display_fps(resized_frame)
-                        q_img = self.convert_to_qimage(resized_frame)
-                        self.frame_ready.emit(q_img)
-                    else:
-                        if config.show_saved_frame and self.saved_frame is not None:
-                            resized_frame = self.resize_to_square(self.saved_frame, self.square_size)
-                            add_text_overlay(resized_frame)
-                            self.display_fps(resized_frame)
-                            q_img = self.convert_to_qimage(resized_frame)
-                            self.frame_ready.emit(q_img)
-
-            # Example of scheduling an async task
-            if self.loop.is_running():
-                asyncio.create_task(self.some_async_task())
+            # Use the last known position if available, otherwise use the full frame
+            if self.last_cropped_position:
+                filtered_cx, filtered_cy, filtered_w, filtered_h = self.last_cropped_position
             else:
-                self.loop.run_until_complete(self.some_async_task())
+                h, w = original_frame.shape[:2]
+                filtered_cx, filtered_cy, filtered_w, filtered_h = w // 2, h // 2, w, h
+
+            # Extract frame based on filtered prediction or last known position
+            cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
+            resized_frame = self.resize_to_square(cropped_frame, self.square_size)
+
+            if bbox:
+                send_add_frame_request(resized_frame, (x, y, w, h))
+
+            add_text_overlay(resized_frame)
+            self.display_fps(resized_frame)
+            q_img = self.convert_to_qimage(resized_frame)
+
+            # Emit the frame ready signal
+            self.frame_ready.emit(q_img)
+
+            self.last_cropped_frame = cropped_frame
 
         except Exception as e:
             logger.exception(f"Error processing frame: {e}")
@@ -204,9 +149,6 @@ class VideoProcessor(QThread):
 
     def is_stable(self, cx, cy, filtered_cx, filtered_cy, threshold):
         return abs(cx - filtered_cx) <= threshold and abs(cy - filtered_cy) <= threshold
-
-    def is_significant_jump(self, cx, cy, previous_cx, previous_cy, threshold):
-        return abs(cx - previous_cx) > threshold or abs(cy - previous_cy) > threshold
 
     def extract_frame(self, frame, w, h, cx, cy):
         frame_height, frame_width = frame.shape[:2]
@@ -248,15 +190,6 @@ class VideoProcessor(QThread):
 
         if config.show_fps:
             cv2.putText(frame, f'FPS: {int(self.fps)}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-
-    def send_frame_to_backend(self):
-        if self.last_cropped_frame is not None:
-            self.saved_frame = self.last_cropped_frame  # Set the saved frame to the last frame sent
-            self.send_to_backend(self.last_cropped_frame)
-
-    def send_to_backend(self, frame):
-        # Implement the logic to send the frame to the backend
-        pass
 
     def stop(self):
         print("VideoProcessor: Stopping")
