@@ -4,20 +4,21 @@ from logger_setup import logger
 import time
 import concurrent.futures
 import cv2
-import os
 from image_store import image_store  # Import the global instance
 
 class ImageLoader(QThread):
     all_sprites_loaded = pyqtSignal(list, list, list)  # Signal to emit when all images are loaded
     loading_completed = pyqtSignal()  # Signal to emit when loading is completed
 
-    def __init__(self, middle_row_offset=config.middle_y_pos):
+    def __init__(self, middle_row_offset=config.middle_y_pos, max_workers=600):
         super().__init__()
         self.num_cols = config.num_cols
         self.num_rows = config.num_rows
         self.middle_row_offset = middle_row_offset
         self.most_similar = []
         self.least_similar = []
+        self.is_loading = False  # Flag to check if loading is in progress
+        self.max_workers = max_workers  # Maximum number of concurrent workers
 
     def set_data(self, most_similar, least_similar):
         if most_similar is None or least_similar is None:
@@ -26,6 +27,11 @@ class ImageLoader(QThread):
         self.least_similar = least_similar
 
     def run(self):
+        if self.is_loading:
+            logger.info('Image loading is already in progress. Skipping new load request.')
+            return
+
+        self.is_loading = True  # Set the flag to indicate loading is in progress
         logger.info('Starting image loading')
         start_time = time.time()  # Start the timer
 
@@ -78,7 +84,7 @@ class ImageLoader(QThread):
             grid_index = row * self.num_cols + col
             self.load_and_append_image(image_info, grid_index, sprites, indices_list)
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
             for pos in positions:
                 if least_similar_index < len(self.least_similar) and pos[1] < center_col:
@@ -97,6 +103,7 @@ class ImageLoader(QThread):
         end_time = time.time()  # End the timer
         duration = end_time - start_time
         logger.info(f"Image loading completed in {duration:.2f} seconds")
+        self.is_loading = False  # Reset the flag after loading is completed
 
     def load_and_append_image(self, image_info, grid_index, sprites, indices_list):
         image_path = image_info['path']

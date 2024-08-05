@@ -14,9 +14,10 @@ from image_loader import ImageLoader
 from backend_communicator import send_snapshot_to_server
 from logger_setup import logger
 from new_faces import stop_all_threads
+import threading
 
 class ImageApp(QWidget):
-    def __init__(self, update_count=config.update_count):
+    def __init__(self, update_count=config.update_count, sprites_per_update=25, update_batch_size=80):
         super().__init__()
         print("Initializing ImageApp.")
         self.sprites = []
@@ -27,8 +28,9 @@ class ImageApp(QWidget):
         self.middle_y_pos = config.middle_y_pos
         self.initUI()
         self.update_count = update_count
+        self.sprites_per_update = sprites_per_update  # Number of sprites to update at a time
         self.update_timer = QTimer(self)
-        self.update_batch_size = 400
+        self.update_batch_size = update_batch_size  # Batch size for loading updates
         self.current_update_index = 0
 
         self.most_similar_indices = []
@@ -47,13 +49,61 @@ class ImageApp(QWidget):
         print("Starting VideoProcessor in ImageApp.")
         self.video_processor.start()
 
-        self.sprite_timer = QTimer(self)
-        self.sprite_timer.timeout.connect(self.update_sprites)
-        self.sprite_timer.start(config.gif_delay)
-
         self.overlay_visible = [False]
         self.overlay = SliderOverlay(self)
         self.overlay.font_size_changed.connect(update_font_size)
+
+        self.sprites_per_update = sprites_per_update
+        self.update_locks = []
+        self.current_update_indices = []
+
+        self.sprite_timers = []
+        self.update_thread_count(config.num_vids)
+
+    def update_thread_count(self, num_vids):
+        # Adjust the number of threads based on the number of videos
+        self.num_threads = max(1, num_vids // 50)  # Example: 1 thread per 50 videos
+        print(f"Setting number of threads to: {self.num_threads}")
+
+        # Clear existing timers and locks
+        for timer in self.sprite_timers:
+            timer.stop()
+        self.sprite_timers.clear()
+        self.update_locks = [threading.Lock() for _ in range(self.num_threads)]
+        self.current_update_indices = [0 for _ in range(self.num_threads)]
+
+        # Create new timers and locks based on the new thread count
+        for i in range(self.num_threads):
+            timer = QTimer(self)
+            timer.timeout.connect(lambda i=i: self.update_sprites_thread(i))
+            timer.start(config.gif_delay)
+            self.sprite_timers.append(timer)
+
+    def update_sprites_thread(self, thread_id):
+        with self.update_locks[thread_id]:
+            total_sprites = len(self.image_labels) - 3  # Exclude special labels
+            sprites_per_thread = total_sprites // self.num_threads
+            start_index = thread_id * sprites_per_thread
+            end_index = start_index + sprites_per_thread if thread_id < self.num_threads - 1 else total_sprites
+
+            for i in range(self.sprites_per_update):
+                current_index = (self.current_update_indices[thread_id] + i) % sprites_per_thread
+                index_to_update = start_index + current_index
+
+                if index_to_update < len(self.sprites) and self.sprites[index_to_update]:
+                    self.sprite_indices[index_to_update] = (self.sprite_indices[index_to_update] + 1) % len(self.sprites[index_to_update])
+                    self.image_labels[index_to_update].setPixmap(self.cv2_to_qpixmap(
+                        self.sprites[index_to_update][self.sprite_indices[index_to_update]],
+                        int(self.square_size),
+                        int(self.square_size)
+                    ))
+
+            self.current_update_indices[thread_id] = (self.current_update_indices[thread_id] + self.sprites_per_update) % sprites_per_thread
+
+        # Update special labels in the first thread
+        if thread_id == 0:
+            self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
+            self.update_special_label(self.least_similar_label, self.least_similar_indices, "least_similar")
 
     def initUI(self):
         print("Setting up UI.")
@@ -159,15 +209,24 @@ class ImageApp(QWidget):
         self.image_loader_running = False  # Reset the flag after loading is completed
 
     def update_sprites(self):
-        # Update main grid
-        for i in range(len(self.image_labels) - 3):  # Exclude the 3 special labels
-            if i < len(self.sprites) and self.sprites[i]:
-                self.sprite_indices[i] = (self.sprite_indices[i] + 1) % len(self.sprites[i])
-                self.image_labels[i].setPixmap(self.cv2_to_qpixmap(
-                    self.sprites[i][self.sprite_indices[i]],
+        # Update main grid in smaller batches
+        update_indices = list(range(len(self.image_labels) - 3))
+        end_index = self.current_update_index + self.sprites_per_update
+
+        # Spread the update over multiple timer ticks
+        for i in range(self.current_update_index, end_index):
+            if i >= len(update_indices):
+                break
+            index = update_indices[i]
+            if index < len(self.sprites) and self.sprites[index]:
+                self.sprite_indices[index] = (self.sprite_indices[index] + 1) % len(self.sprites[index])
+                self.image_labels[index].setPixmap(self.cv2_to_qpixmap(
+                    self.sprites[index][self.sprite_indices[index]],
                     int(self.square_size),
                     int(self.square_size)
                 ))
+
+        self.current_update_index = (end_index) % len(update_indices)
 
         # Update special labels separately
         self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
@@ -240,7 +299,7 @@ class ImageApp(QWidget):
         self.update_next_sprites()
 
     def update_next_sprites(self):
-        total_updates = min(self.update_count, (len(self.most_similar_indices) - self.current_most_index) + (len(self.least_similar_indices) - self.current_least_index))
+        total_updates = min(self.update_batch_size, (len(self.most_similar_indices) - self.current_most_index) + (len(self.least_similar_indices) - self.current_least_index))
         updates_done = 0
 
         while updates_done < total_updates:
@@ -273,7 +332,7 @@ class ImageApp(QWidget):
             print("All sprites have been batch loaded into the grid.")
             logger.info("All sprites have been batch loaded into the grid.")
         else:
-            QTimer.singleShot(config.update_delay, self.update_next_sprites)  # Schedule next batch update in 50ms
+            QTimer.singleShot(config.update_delay, self.update_next_sprites)  # Schedule next batch update
 
     def update_most_similar(self):
         if self.most_similar_indices:

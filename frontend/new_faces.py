@@ -76,6 +76,10 @@ def set_curr_face(mediapipe_result, frame, callback):
 
         cropped_face = frame[y:y + h, x:x + w]
 
+        if cropped_face.size == 0:
+            logger.error("Cropped face is empty. Skipping this frame.")
+            return
+
         if curr_face is None and detection_counter >= 10:
             print('new face')
 
@@ -99,6 +103,7 @@ def set_curr_face(mediapipe_result, frame, callback):
 
             if not log_no_face_detected:
                 log_no_face_detected = True
+
 
 def update_face_detection(frame, cropped_face, new_face_detected, callback):
     global curr_face, previous_backend_success, awaiting_backend_response, frames_sent, face_detected

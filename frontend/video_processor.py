@@ -1,12 +1,14 @@
+import sys
+import math
+import cv2
+import numpy as np
 from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QImage
 from mediapipe_face_detection import MediaPipeFaceDetection
-import numpy as np
 import config
 from logger_setup import logger
 from text_overlay import add_text_overlay
 import time
-import cv2
 from one_euro import OneEuroFilter  # Import the One Euro filter
 import asyncio
 from backend_communicator import send_add_frame_request
@@ -201,3 +203,14 @@ class VideoProcessor(QThread):
 
     def update_config(self):
         self.bbox_multiplier = config.bbox_multiplier
+
+    def set_exposure(self, exposure_value):
+        """
+        Sets the exposure of the camera.
+        :param exposure_value: The desired exposure value.
+        """
+        if self.cap.isOpened():
+            self.cap.set(cv2.CAP_PROP_GAIN, exposure_value)
+            logger.info(f"Camera exposure set to {exposure_value}")
+        else:
+            logger.error("Failed to set camera exposure. Camera is not opened.")

@@ -4,7 +4,7 @@ import config
 # Custom filter to log only if config.demo is True
 class DemoFilter(logging.Filter):
     def filter(self, record):
-        return config.demo
+        return not config.demo
 
 # Configure the logger
 logger = logging.getLogger(__name__)

@@ -12,7 +12,6 @@ const {setCameraControl} = require("./uvcControl");
 
 const app = express();
 app.use(cors());
-
 const port = 3000;
 let numVids;
 

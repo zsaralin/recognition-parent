@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QLineEdit, QP
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
 import config
+from backend_communicator import set_camera_control
 
 class SliderOverlay(QWidget):
     config_changed = pyqtSignal()  # Signal to notify when config changes
@@ -11,7 +12,7 @@ class SliderOverlay(QWidget):
         super().__init__(parent)
         self.initUI()
         self.setFocusPolicy(Qt.StrongFocus)  # Ensure the widget can receive key events
-        self.setFixedSize(320, 480)  # Set a fixed size for the window with extra width and height
+        self.setFixedSize(320, 600)  # Set a fixed size for the window with extra width and height
         self.move(10, 10)  # Move the window to the top-left corner of the screen
         self.setStyleSheet("""
             background-color: white;  /* Set the background color to white */
@@ -80,6 +81,20 @@ class SliderOverlay(QWidget):
         self.font_size_input.setText(str(config.font_size))
         self.font_size_input.setFont(font)
 
+        self.auto_exposure_time_label = QLabel('Auto Exposure Time', self)
+        self.auto_exposure_time_label.setFont(font)
+        self.auto_exposure_time_slider = self.create_slider(50, 10000, int(config.auto_exposure_time))
+        self.auto_exposure_time_input = self.create_input(50, 10000, is_double=False)
+        self.auto_exposure_time_input.setText(str(int(config.auto_exposure_time)))
+        self.auto_exposure_time_input.setFont(font)
+
+        self.gain_label = QLabel('Gain', self)
+        self.gain_label.setFont(font)
+        self.gain_slider = self.create_slider(1, 128, int(config.gain))
+        self.gain_input = self.create_input(1, 128, is_double=False)
+        self.gain_input.setText(str(int(config.gain)))
+        self.gain_input.setFont(font)
+
         self.create_sprites_checkbox = QCheckBox('Create Sprites', self)
         self.create_sprites_checkbox.setChecked(config.create_sprites)
         self.create_sprites_checkbox.setFont(font)
@@ -143,6 +158,14 @@ class SliderOverlay(QWidget):
         layout.addWidget(self.font_size_label)
         layout.addWidget(self.font_size_slider)
         layout.addWidget(self.font_size_input)
+
+        layout.addWidget(self.auto_exposure_time_label)
+        layout.addWidget(self.auto_exposure_time_slider)
+        layout.addWidget(self.auto_exposure_time_input)
+
+        layout.addWidget(self.gain_label)
+        layout.addWidget(self.gain_slider)
+        layout.addWidget(self.gain_input)
 
         layout.addWidget(self.create_sprites_checkbox)
         layout.addWidget(self.show_fps_checkbox)
@@ -253,6 +276,12 @@ class SliderOverlay(QWidget):
         elif sender == self.font_size_slider:
             self.font_size_input.setText(str(sender.value() / 10))
             self.font_size_changed.emit(sender.value() / 10)  # Emit the font size changed signal
+        elif sender == self.auto_exposure_time_slider:
+            self.auto_exposure_time_input.setText(str(sender.value()))
+            set_camera_control('absoluteExposureTime', sender.value())  # Call the backend function
+        elif sender == self.gain_slider:
+            self.gain_input.setText(str(sender.value()))
+            set_camera_control('gain', sender.value())  # Call the backend function
 
     def update_value_from_input(self):
         sender = self.sender()
@@ -280,6 +309,12 @@ class SliderOverlay(QWidget):
         elif sender == self.font_size_input:
             self.font_size_slider.setValue(int(value * 10))
             self.font_size_changed.emit(value)  # Emit the font size changed signal
+        elif sender == self.auto_exposure_time_input:
+            self.auto_exposure_time_slider.setValue(int(value))
+            set_camera_control('auto_exposure_time', int(value))  # Call the backend function
+        elif sender == self.gain_input:
+            self.gain_slider.setValue(int(value))
+            set_camera_control('gain', int(value))  # Call the backend function
 
     def save_values_to_config(self):
         config.gif_delay = self.gif_delay_slider.value()
@@ -294,6 +329,8 @@ class SliderOverlay(QWidget):
         config.show_fps = self.show_fps_checkbox.isChecked()
         config.auto_update = self.auto_update_checkbox.isChecked()
         config.show_saved_frame = self.show_saved_checkbox.isChecked()  # Save the new checkbox value
+        config.auto_exposure_time = self.auto_exposure_time_slider.value()
+        config.gain = self.gain_slider.value()
 
         # Retain the demo value from the previous configuration
         demo_value = getattr(config, 'demo', False)
@@ -313,6 +350,8 @@ class SliderOverlay(QWidget):
             config_file.write(f"show_fps = {config.show_fps}\n")
             config_file.write(f"auto_update = {config.auto_update}\n")
             config_file.write(f"show_saved_frame = {config.show_saved_frame}\n")
+            config_file.write(f"auto_exposure_time = {config.auto_exposure_time}\n")
+            config_file.write(f"gain = {config.gain}\n")
             config_file.write(f"demo = {config.demo}\n")  # Write the demo config value
 
         # Emit signal to update the config
