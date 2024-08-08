@@ -249,6 +249,7 @@ class ImageApp(QWidget):
         else:
             logger.error(f"No indices available for {label_type}")
 
+
     def update_video_label(self, q_img):
         self.video_label.setPixmap(QPixmap.fromImage(q_img))
 
