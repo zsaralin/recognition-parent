@@ -13,13 +13,11 @@ from video_processor import VideoProcessor
 from image_loader import ImageLoader
 from backend_communicator import send_snapshot_to_server
 from logger_setup import logger
-from new_faces import stop_all_threads
-import threading
+from new_faces import NewFaces
 
 class ImageApp(QWidget):
-    def __init__(self, update_count=config.update_count, sprites_per_update=25, update_batch_size=80):
+    def __init__(self, update_count=config.update_count, sprites_per_update=25, update_batch_size=80, batch_size=200):
         super().__init__()
-        print("Initializing ImageApp.")
         self.sprites = []
         self.sprite_indices = []
         self.animating_labels = set()
@@ -28,10 +26,12 @@ class ImageApp(QWidget):
         self.middle_y_pos = config.middle_y_pos
         self.initUI()
         self.update_count = update_count
-        self.sprites_per_update = sprites_per_update  # Number of sprites to update at a time
+        self.sprites_per_update = sprites_per_update
         self.update_timer = QTimer(self)
-        self.update_batch_size = update_batch_size  # Batch size for loading updates
+        self.update_batch_size = update_batch_size
         self.current_update_index = 0
+        self.batch_size = batch_size
+        self.current_batch_start = 0
 
         self.most_similar_indices = []
         self.least_similar_indices = []
@@ -43,73 +43,21 @@ class ImageApp(QWidget):
 
         self.most_similar = []
         self.least_similar = []
+        self.new_faces = NewFaces()
 
-        self.video_processor = VideoProcessor(square_size=int(self.square_size * 3), callback=self.load_images)
+        self.video_processor = VideoProcessor(self.new_faces, square_size=int(self.square_size * 3), callback=self.load_images)
         self.video_processor.frame_ready.connect(self.update_video_label)
-        print("Starting VideoProcessor in ImageApp.")
         self.video_processor.start()
 
         self.overlay_visible = [False]
         self.overlay = SliderOverlay(self)
         self.overlay.font_size_changed.connect(update_font_size)
 
-        self.sprites_per_update = sprites_per_update
-
-        self.is_updating_sprites = False  # Flag to control sprite updates
-
-        self.update_locks = []
-        self.current_update_indices = []
-
-        self.sprite_timers = []
-        self.update_thread_count(config.num_vids)
-
-    def update_thread_count(self, num_vids):
-        # Adjust the number of threads based on the number of videos
-        self.num_threads = max(1, num_vids // 50)  # Example: 1 thread per 50 videos
-        print(f"Setting number of threads to: {self.num_threads}")
-
-        # Clear existing timers and locks
-        for timer in self.sprite_timers:
-            timer.stop()
-        self.sprite_timers.clear()
-        self.update_locks = [threading.Lock() for _ in range(self.num_threads)]
-        self.current_update_indices = [0 for _ in range(self.num_threads)]
-
-        # Create new timers and locks based on the new thread count
-        for i in range(self.num_threads):
-            timer = QTimer(self)
-            timer.timeout.connect(lambda i=i: self.update_sprites_thread(i))
-            timer.start(config.gif_delay)
-            self.sprite_timers.append(timer)
-
-    def update_sprites_thread(self, thread_id):
-        with self.update_locks[thread_id]:
-            total_sprites = len(self.image_labels) - 3  # Exclude special labels
-            sprites_per_thread = total_sprites // self.num_threads
-            start_index = thread_id * sprites_per_thread
-            end_index = start_index + sprites_per_thread if thread_id < self.num_threads - 1 else total_sprites
-
-            for i in range(self.sprites_per_update):
-                current_index = (self.current_update_indices[thread_id] + i) % sprites_per_thread
-                index_to_update = start_index + current_index
-
-                if index_to_update < len(self.sprites) and self.sprites[index_to_update]:
-                    self.sprite_indices[index_to_update] = (self.sprite_indices[index_to_update] + 1) % len(self.sprites[index_to_update])
-                    self.image_labels[index_to_update].setPixmap(self.cv2_to_qpixmap(
-                        self.sprites[index_to_update][self.sprite_indices[index_to_update]],
-                        int(self.square_size),
-                        int(self.square_size)
-                    ))
-
-            self.current_update_indices[thread_id] = (self.current_update_indices[thread_id] + self.sprites_per_update) % sprites_per_thread
-
-        # Update special labels in the first thread
-        if thread_id == 0:
-            self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
-            self.update_special_label(self.least_similar_label, self.least_similar_indices, "least_similar")
+        self.is_updating_sprites = False
+        self.update_timer.timeout.connect(self.update_sprites)
+        self.update_timer.start(config.gif_delay)
 
     def initUI(self):
-        print("Setting up UI.")
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.setWindowTitle('Image Display App')
@@ -117,22 +65,17 @@ class ImageApp(QWidget):
 
         screen_sizes = [(screen.size().width(), screen.size().height()) for screen in QApplication.screens()]
         largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
-        print(f"Largest screen size: width={largest_screen_width}, height={largest_screen_height}")
 
         window_width = largest_screen_width / 2 if config.demo else largest_screen_width
-
         window_height = largest_screen_height
 
         self.num_cols = config.num_cols
         self.square_size = window_width // self.num_cols
-        print(f"Number of columns: {self.num_cols}, square size: {self.square_size}")
 
         self.num_rows = math.floor(window_height / self.square_size)
-        print(f"Number of rows: {self.num_rows}")
 
         config.num_rows = self.num_rows
         config.num_vids = self.num_rows * self.num_cols
-        print(f"Number of videos: {config.num_vids}")
 
         self.image_labels = []
         for row in range(self.num_rows):
@@ -142,9 +85,8 @@ class ImageApp(QWidget):
                 label.setStyleSheet("background-color: black; border: none; margin: 0; padding: 0;")
                 label.setAlignment(Qt.AlignCenter)
                 self.image_labels.append(label)
-                self.sprites.append([])  # Initialize empty list for each label
-                self.sprite_indices.append(0)  # Initialize sprite index for each label
-        print("Image labels created and added to grid layout")
+                self.sprites.append([])
+                self.sprite_indices.append(0)
 
         self.create_center_labels()
 
@@ -155,13 +97,10 @@ class ImageApp(QWidget):
             self.setFixedSize(int(window_width), int(window_height))
             self.show()
 
-        print("Main window displayed")
-
-        QApplication.setOverrideCursor(Qt.BlankCursor)  # Hide the mouse cursor
+        QApplication.setOverrideCursor(Qt.BlankCursor)
 
         self.shortcut = QShortcut(QKeySequence("Escape"), self)
         self.shortcut.activated.connect(self.close_app)
-        print("Escape shortcut set up")
 
     def create_center_labels(self):
         center_row = self.num_rows // 2 + self.middle_y_pos
@@ -175,52 +114,44 @@ class ImageApp(QWidget):
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setStyleSheet("border: none; margin: 0;")
         self.image_labels.append(self.video_label)
-        self.sprites.append([])  # Initialize empty list for each label
-        self.sprite_indices.append(0)  # Initialize sprite index for each label
-        print("Video label created and added to grid layout")
+        self.sprites.append([])
+        self.sprite_indices.append(0)
 
         self.least_similar_label = QLabel(self)
         self.least_similar_label.setFixedSize(video_label_width, video_label_height)
         self.least_similar_label.setAlignment(Qt.AlignCenter)
         self.least_similar_label.setStyleSheet("border: none; margin: 0;")
         self.image_labels.append(self.least_similar_label)
-        self.sprites.append([])  # Initialize empty list for each label
-        self.sprite_indices.append(0)  # Initialize sprite index for each label
-        print("Least similar label created and added to grid layout")
+        self.sprites.append([])
+        self.sprite_indices.append(0)
 
         self.most_similar_label = QLabel(self)
         self.most_similar_label.setFixedSize(video_label_width, video_label_height)
         self.most_similar_label.setAlignment(Qt.AlignCenter)
         self.most_similar_label.setStyleSheet("border: none; margin: 0;")
         self.image_labels.append(self.most_similar_label)
-        self.sprites.append([])  # Initialize empty list for each label
-        self.sprite_indices.append(0)  # Initialize sprite index for each label
-        print("Most similar label created and added to grid layout")
+        self.sprites.append([])
+        self.sprite_indices.append(0)
 
     def closeEvent(self, event):
-        print("Close event triggered")
-        stop_all_threads()  # Stop all threads before closing
+        self.new_faces.stop_all_threads()
         event.accept()
-        print("Close event accepted")
 
     def handle_sprite_loaded(self, label_index, sprites):
         self.sprites[label_index] = sprites
 
     def handle_loading_completed(self):
-        print("All images have been loaded.")
         logger.info("All images have been loaded.")
-        self.image_loader_running = False  # Reset the flag after loading is completed
+        self.image_loader_running = False
 
     def update_sprites(self):
         if self.is_updating_sprites:
-            return  # Skip updating sprites if update_next_sprites is running
+            return
 
-        # Update main grid in smaller batches
         update_indices = list(range(len(self.image_labels) - 3))
-        end_index = self.current_update_index + self.sprites_per_update
+        batch_end = self.current_batch_start + self.batch_size
 
-        # Spread the update over multiple timer ticks
-        for i in range(self.current_update_index, end_index):
+        for i in range(self.current_batch_start, batch_end):
             if i >= len(update_indices):
                 break
             index = update_indices[i]
@@ -232,9 +163,8 @@ class ImageApp(QWidget):
                     int(self.square_size)
                 ))
 
-        self.current_update_index = (end_index) % len(update_indices)
+        self.current_batch_start = (batch_end) % len(update_indices)
 
-        # Update special labels separately
         self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
         self.update_special_label(self.least_similar_label, self.least_similar_indices, "least_similar")
 
@@ -255,13 +185,11 @@ class ImageApp(QWidget):
         else:
             logger.error(f"No indices available for {label_type}")
 
-
     def update_video_label(self, q_img):
         self.video_label.setPixmap(QPixmap.fromImage(q_img))
 
     def cv2_to_qpixmap(self, cv_img, target_width, target_height, add_overlay=False, overlay_text=""):
         if not isinstance(cv_img, np.ndarray):
-            print("Invalid image format:", type(cv_img))
             return QPixmap()
         cv_img_resized = cv2.resize(cv_img, (target_width, target_height), interpolation=cv2.INTER_AREA)
         height, width, channel = cv_img_resized.shape
@@ -276,12 +204,10 @@ class ImageApp(QWidget):
 
     def load_images(self, most_similar, least_similar):
         if self.image_loader_running:
-            print("Image loader is already running. Skipping new load request.")
             return
 
         self.image_loader_running = True
         if self.image_loader_thread and self.image_loader_thread.isRunning():
-            print("Image loader thread is already running, stopping it first.")
             self.image_loader_thread.quit()
             self.image_loader_thread.wait()
 
@@ -289,7 +215,7 @@ class ImageApp(QWidget):
         self.least_similar = least_similar
 
         self.image_loader_thread = QThread()
-        self.image_loader = ImageLoader(self.middle_y_pos)  # No need to pass preloaded images
+        self.image_loader = ImageLoader(self.middle_y_pos)
         self.image_loader.moveToThread(self.image_loader_thread)
         self.image_loader.set_data(most_similar, least_similar)
         self.image_loader.all_sprites_loaded.connect(self.handle_all_sprites_loaded)
@@ -306,7 +232,7 @@ class ImageApp(QWidget):
         self.update_next_sprites()
 
     def update_next_sprites(self):
-        self.is_updating_sprites = True  # Set flag to indicate sprite update in progress
+        self.is_updating_sprites = True
 
         total_updates = min(self.update_batch_size, (len(self.most_similar_indices) - self.current_most_index) + (len(self.least_similar_indices) - self.current_least_index))
         updates_done = 0
@@ -338,11 +264,10 @@ class ImageApp(QWidget):
                 updates_done += 1
 
         if self.current_most_index >= len(self.most_similar_indices) and self.current_least_index >= len(self.least_similar_indices):
-            print("All sprites have been batch loaded into the grid.")
             logger.info("All sprites have been batch loaded into the grid.")
-            self.is_updating_sprites = False  # Reset flag after sprite update is complete
+            self.is_updating_sprites = False
         else:
-            QTimer.singleShot(config.update_delay, self.update_next_sprites)  # Schedule next batch update
+            QTimer.singleShot(config.update_delay, self.update_next_sprites)
 
     def update_most_similar(self):
         if self.most_similar_indices:
@@ -371,20 +296,20 @@ class ImageApp(QWidget):
             if self.overlay_visible[0]:
                 self.overlay.close()
                 self.overlay_visible[0] = False
-                QApplication.setOverrideCursor(Qt.BlankCursor)  # Hide the mouse cursor
+                QApplication.setOverrideCursor(Qt.BlankCursor)
             else:
                 self.overlay.show()
                 self.overlay_visible[0] = True
-                QApplication.restoreOverrideCursor()  # Show the mouse cursor
+                QApplication.restoreOverrideCursor()
         elif event.key() == Qt.Key_Escape:
             if self.overlay_visible[0]:
                 self.overlay.close()
                 self.overlay_visible[0] = False
-                QApplication.setOverrideCursor(Qt.BlankCursor)  # Hide the mouse cursor
+                QApplication.setOverrideCursor(Qt.BlankCursor)
             self.close_app()
 
     def close_app(self):
-        stop_all_threads()  # Stop all threads before closing the app
+        self.new_faces.stop_all_threads()
         self.video_processor.stop()
         self.video_processor.wait()
         if hasattr(self, 'image_loader_thread') and self.image_loader_thread.isRunning():

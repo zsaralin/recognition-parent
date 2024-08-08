@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-import requests
-import base64
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -9,148 +7,131 @@ import config
 from logger_setup import logger
 from backend_communicator import send_snapshot_to_server, send_no_face_detected_request, send_add_frame_request
 
-# Global variables
-curr_face = None
-no_face_counter = 0
-previous_backend_success = True
-awaiting_backend_response = False
-detection_counter = 0
-frame_buffer = []
-bbox_buffer = []
-frames_sent = False
-log_no_face_detected = False
-face_detected = False
-mediapipe_last_detection_time = 0
-mediapipe_valid_detection = False
-stop_threads = False
-executor = ThreadPoolExecutor(max_workers=5)
+class NewFaces:
+    def __init__(self):
+        self.curr_face = None
+        self.no_face_counter = 0
+        self.previous_backend_success = True
+        self.awaiting_backend_response = False
+        self.detection_counter = 0
+        self.frame_buffer = []
+        self.bbox_buffer = []
+        self.frames_sent = False
+        self.log_no_face_detected = False
+        self.face_detected = False
+        self.mediapipe_last_detection_time = 0
+        self.mediapipe_valid_detection = False
+        self.stop_threads = False
+        self.executor = ThreadPoolExecutor(max_workers=5)
+        self.cropped_frame = None
 
-def reset_face():
-    global curr_face, detection_counter, frame_buffer, bbox_buffer, frames_sent
-    curr_face = None
-    detection_counter = 0
-    frames_sent = False
-    frame_buffer = []
-    bbox_buffer = []
+        if config.auto_update:
+            self.start_periodic_reset()
 
-def periodic_reset():
-    if stop_threads:
-        return
-    if mediapipe_valid_detection:
-        reset_face()
-    threading.Timer(config.update_int, periodic_reset).start()
+    def reset_face(self):
+        self.curr_face = None
+        self.detection_counter = 0
+        self.frames_sent = False
+        self.frame_buffer = []
+        self.bbox_buffer = []
+        logger.info("Face reset. curr_face set to None.")
 
-def start_periodic_reset():
-    global stop_threads
-    stop_threads = False
-    if config.auto_update:
-        periodic_reset()
+    def periodic_reset(self):
+        if self.stop_threads:
+            return
+        if self.mediapipe_valid_detection:
+            self.reset_face()
+        threading.Timer(config.update_int, self.periodic_reset).start()
 
-def set_curr_face(mediapipe_result, frame, callback):
-    global curr_face, no_face_counter, detection_counter, frame_buffer, bbox_buffer, frames_sent, log_no_face_detected, face_detected, mediapipe_last_detection_time, mediapipe_valid_detection
-    bbox_multiplier = config.bbox_multiplier
+    def start_periodic_reset(self):
+        self.stop_threads = False
+        if config.auto_update:
+            self.periodic_reset()
 
-    current_time = time.time()
+    def set_cropped_frame(self, cropped_frame):
+        self.cropped_frame = cropped_frame
+        logger.info(f"Set cropped frame with shape: {cropped_frame.shape} and type: {type(cropped_frame)}")
 
-    if mediapipe_result and mediapipe_result.detections:
-        mediapipe_last_detection_time = current_time
-        mediapipe_valid_detection = True
+    def set_curr_face(self, mediapipe_result, frame, callback):
+        current_time = time.time()
 
-        log_no_face_detected = False
-        face_detected = True
+        if mediapipe_result and mediapipe_result.detections:
+            self.mediapipe_last_detection_time = current_time
+            self.mediapipe_valid_detection = True
 
-        no_face_counter = 0
-        detection_counter += 1
+            self.log_no_face_detected = False
+            self.face_detected = True
 
-        detection = mediapipe_result.detections[0]
-        bboxC = detection.location_data.relative_bounding_box
-        ih, iw, _ = frame.shape
-        x, y, w, h = int(bboxC.xmin * iw), int(bboxC.ymin * ih), int(bboxC.width * iw), int(bboxC.height * ih)
+            self.no_face_counter = 0
+            self.detection_counter += 1
 
-        w = int(w * bbox_multiplier)
-        h = w
-        cx, cy = x + int(bboxC.width * iw // 2), y + int(bboxC.height * ih // 2)
+            cropped_face = self.cropped_frame  # Use the cropped frame from VideoProcessor
 
-        x = max(0, min(cx - w // 2, iw - w))
-        y = max(0, min(cy - h // 2, ih - h))
+            if cropped_face is None or cropped_face.size == 0:
+                logger.error("Cropped face is empty.")
+                return
 
-        cropped_face = frame[y:y + h, x:x + w]
+            if self.curr_face is None and self.detection_counter >= 10:
+                logger.info('New face detected')
 
-        if cropped_face.size == 0:
-            logger.error("Cropped face is empty. Skipping this frame.")
+                self.curr_face = cropped_face
+                self.detection_counter = 0
+                self.frames_sent = False
+                self.frame_buffer = []
+                self.bbox_buffer = []
+
+                # Send the cropped face to the snapshot server
+                self.send_cropped_face_to_server(cropped_face, callback)
+
+        else:
+            self.face_detected = False
+            self.no_face_counter += 1
+            self.detection_counter = 0
+            self.mediapipe_valid_detection = False
+            if self.no_face_counter >= 1:
+                logger.info('No face detected')
+                self.reset_face()
+                if config.create_sprites:
+                    send_no_face_detected_request()
+                if not self.log_no_face_detected:
+                    self.log_no_face_detected = True
+
+    def send_cropped_face_to_server(self, cropped_face, callback):
+        if self.awaiting_backend_response:
             return
 
-        if curr_face is None and detection_counter >= 10:
-            print('new face')
+        if cropped_face is None:
+            logger.error("send_cropped_face_to_server: cropped_face is None")
+            return
 
-            curr_face = cropped_face
-            detection_counter = 0
-            frames_sent = False
-            frame_buffer = []
-            bbox_buffer = []
+        if not isinstance(cropped_face, np.ndarray):
+            logger.error(f"send_cropped_face_to_server: cropped_face is not a valid numpy array. Type: {type(cropped_face)}")
+            return
 
-            update_face_detection(frame, cropped_face, True, callback)
-
-    else:
-        face_detected = False
-        no_face_counter += 1
-        detection_counter = 0
-        mediapipe_valid_detection = False
-        if no_face_counter >= 1:
-            print('no face')
-            reset_face()
-            if config.create_sprites:
-                send_no_face_detected_request()
-            if not log_no_face_detected:
-                log_no_face_detected = True
-
-
-def update_face_detection(frame, cropped_face, new_face_detected, callback):
-    global curr_face, previous_backend_success, awaiting_backend_response, frames_sent, face_detected
-
-    if awaiting_backend_response:
-        return
-
-    if cropped_face is None:
-        logger.error("update_face_detection: cropped_face is None")
-        return
-
-    if not isinstance(cropped_face, np.ndarray):
-        logger.error(f"update_face_detection: cropped_face is not a valid numpy array. Type: {type(cropped_face)}")
-        return
-
-    if new_face_detected or not previous_backend_success:
-        awaiting_backend_response = True
+        self.awaiting_backend_response = True
 
         def backend_task():
-            most_similar, least_similar, success = send_snapshot_to_server(cropped_face, callback)
-            return most_similar, least_similar, success
+            return send_snapshot_to_server(cropped_face, callback)
 
         def backend_callback(future):
-            global previous_backend_success, awaiting_backend_response, curr_face
             most_similar, least_similar, success = future.result()
-            awaiting_backend_response = False
+            self.awaiting_backend_response = False
 
             if success:
-                previous_backend_success = True
-                curr_face = cropped_face
+                self.previous_backend_success = True
+                self.curr_face = cropped_face
                 callback(most_similar, least_similar)
             else:
-                previous_backend_success = False
+                self.previous_backend_success = False
                 logger.warning("Failed to get matches from server, will retry with the next frame.")
 
-        future = executor.submit(backend_task)
+        future = self.executor.submit(backend_task)
         future.add_done_callback(backend_callback)
 
-def stop_all_threads():
-    global stop_threads
-    stop_threads = True
-    executor.shutdown(wait=False)
+    def stop_all_threads(self):
+        self.stop_threads = True
+        self.executor.shutdown(wait=False)
 
 # Ensure cleanup on application exit
 import atexit
-atexit.register(stop_all_threads)
-
-# Start periodic reset if auto_update is enabled
-if config.auto_update:
-    start_periodic_reset()
+atexit.register(lambda: NewFaces().stop_all_threads())

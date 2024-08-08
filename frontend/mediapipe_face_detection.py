@@ -1,9 +1,9 @@
 import cv2
 import mediapipe as mp
-from new_faces import set_curr_face
+from new_faces import NewFaces
 import config
 import math
-
+from logger_setup import logger
 class MediaPipeFaceDetection:
     def __init__(self):
         self.mp_face_detection = mp.solutions.face_detection
@@ -13,6 +13,7 @@ class MediaPipeFaceDetection:
         self.current_face_bbox = None  # Store the current face's bounding box
         self.previous_cx = None
         self.previous_cy = None
+        self.new_faces = NewFaces()  # Create an instance of NewFaces
 
     def detect_faces(self, frame, callback):
         results = self.face_detection.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -23,8 +24,7 @@ class MediaPipeFaceDetection:
             for detection in results.detections:
                 bboxC = detection.location_data.relative_bounding_box
                 h, w, c = frame.shape
-                bbox = int(bboxC.xmin * w), int(bboxC.ymin * h), \
-                    int(bboxC.width * w), int(bboxC.height * h)
+                bbox = int(bboxC.xmin * w), int(bboxC.ymin * h), int(bboxC.width * w), int(bboxC.height * h)
 
                 # Calculate the distance of the face from the camera
                 face_center_x = bbox[0] + bbox[2] // 2
@@ -61,8 +61,18 @@ class MediaPipeFaceDetection:
         else:
             self.current_face_bbox = None  # No face detected at all
 
+        # Ensure the current face bounding box is valid before calling set_curr_face
+        if self.current_face_bbox:
+            x, y, w, h = self.current_face_bbox
+            cropped_frame = frame[y:y+h, x:x+w]
+            if cropped_frame.size == 0:
+                logger.error("Cropped frame in detect_faces is empty.")
+            else:
+                logger.info(f"Cropped frame in detect_faces with shape: {cropped_frame.shape}")
+                self.new_faces.set_cropped_frame(cropped_frame)
+
         # Call set_curr_face with the closest face result, frame, and callback
-        set_curr_face(results, frame, callback)
+        self.new_faces.set_curr_face(results, frame, callback)
 
         return frame, self.current_face_bbox
 

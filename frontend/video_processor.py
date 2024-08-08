@@ -12,11 +12,13 @@ import time
 from one_euro import OneEuroFilter  # Import the One Euro filter
 import asyncio
 from backend_communicator import send_add_frame_request
+from new_faces import NewFaces
 
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QImage)
+    cropped_frame_ready = pyqtSignal(np.ndarray)  # New signal for cropped frame
 
-    def __init__(self, camera_index=0, square_size=300, callback=None):
+    def __init__(self, new_faces, camera_index=0, square_size=300, callback=None):
         super().__init__()
         self.camera_index = camera_index
         self.square_size = square_size
@@ -24,6 +26,7 @@ class VideoProcessor(QThread):
         self.cap = cv2.VideoCapture(self.camera_index)
         self.callback = callback
         self.bbox_multiplier = config.bbox_multiplier
+        self.new_faces = new_faces
 
         if not self.cap.isOpened():
             logger.error("Failed to open camera.")
@@ -124,7 +127,16 @@ class VideoProcessor(QThread):
 
             # Extract frame based on filtered prediction or last known position
             cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
+
+            if cropped_frame is None or cropped_frame.size == 0:
+                logger.error(f"Cropped frame is empty. filtered_w: {filtered_w}, filtered_h: {filtered_h}, filtered_cx: {filtered_cx}, filtered_cy: {filtered_cy}")
+            else:
+                logger.info(f"Cropped frame extracted successfully. Shape: {cropped_frame.shape}")
+
             resized_frame = self.resize_to_square(cropped_frame, self.square_size)
+
+            # Set the cropped frame in NewFaces instance
+            self.new_faces.set_cropped_frame(cropped_frame)
 
             if bbox and config.create_sprites:
                 send_add_frame_request(resized_frame, (x, y, w, h))
@@ -135,6 +147,9 @@ class VideoProcessor(QThread):
 
             # Emit the frame ready signal
             self.frame_ready.emit(q_img)
+
+            # Emit the cropped frame ready signal
+            self.cropped_frame_ready.emit(cropped_frame)
 
             self.last_cropped_frame = cropped_frame
 
@@ -175,7 +190,9 @@ class VideoProcessor(QThread):
         x2 = x1 + crop_size
         y2 = y1 + crop_size
 
-        return frame[y1:y2, x1:x2]
+        cropped_frame = frame[y1:y2, x1:x2]
+        logger.info(f"Extracted frame of size {cropped_frame.shape}")
+        return cropped_frame
 
     def resize_to_square(self, frame, size):
         return cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR)
@@ -214,3 +231,6 @@ class VideoProcessor(QThread):
             logger.info(f"Camera exposure set to {exposure_value}")
         else:
             logger.error("Failed to set camera exposure. Camera is not opened.")
+
+    def get_cropped_frame(self):
+        return self.last_cropped_frame

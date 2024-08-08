@@ -42,7 +42,7 @@ class ImageStore:
 
     def get_num_images_from_filename(self, filename):
         # Extract the number from the filename assuming the format is like "image_50.png"
-        num_images = min(5, int(filename.split('_')[-1].split('.')[0]))
+        num_images = min(155, int(filename.split('_')[-1].split('.')[0]))
         return num_images
 
     def get_sub_images(self, image_path):

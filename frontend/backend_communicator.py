@@ -35,7 +35,6 @@ def send_snapshot_to_server(frame, callback):
         print("Already waiting for a response. Skipping this request.")
         return None, None, False
 
-    print('SNEDING SNAPSHOTTTTTTTTTTTTTTTTTTTTTTT')
     if frame is None:
         logger.error("send_snapshot_to_server: frame is None")
         return None, None, False
