@@ -54,6 +54,9 @@ class ImageApp(QWidget):
         self.overlay.font_size_changed.connect(update_font_size)
 
         self.sprites_per_update = sprites_per_update
+
+        self.is_updating_sprites = False  # Flag to control sprite updates
+
         self.update_locks = []
         self.current_update_indices = []
 
@@ -209,6 +212,9 @@ class ImageApp(QWidget):
         self.image_loader_running = False  # Reset the flag after loading is completed
 
     def update_sprites(self):
+        if self.is_updating_sprites:
+            return  # Skip updating sprites if update_next_sprites is running
+
         # Update main grid in smaller batches
         update_indices = list(range(len(self.image_labels) - 3))
         end_index = self.current_update_index + self.sprites_per_update
@@ -300,6 +306,8 @@ class ImageApp(QWidget):
         self.update_next_sprites()
 
     def update_next_sprites(self):
+        self.is_updating_sprites = True  # Set flag to indicate sprite update in progress
+
         total_updates = min(self.update_batch_size, (len(self.most_similar_indices) - self.current_most_index) + (len(self.least_similar_indices) - self.current_least_index))
         updates_done = 0
 
@@ -332,6 +340,7 @@ class ImageApp(QWidget):
         if self.current_most_index >= len(self.most_similar_indices) and self.current_least_index >= len(self.least_similar_indices):
             print("All sprites have been batch loaded into the grid.")
             logger.info("All sprites have been batch loaded into the grid.")
+            self.is_updating_sprites = False  # Reset flag after sprite update is complete
         else:
             QTimer.singleShot(config.update_delay, self.update_next_sprites)  # Schedule next batch update
 
