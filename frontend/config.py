@@ -1,4 +1,4 @@
-gif_delay = 0
+gif_delay = 60
 num_cols = 21
 middle_y_pos = -5
 update_count = 50

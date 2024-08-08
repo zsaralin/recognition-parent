@@ -145,28 +145,38 @@ class ImageApp(QWidget):
         self.image_loader_running = False
 
     def update_sprites(self):
-        if self.is_updating_sprites:
-            return
-
         update_indices = list(range(len(self.image_labels) - 3))
-        batch_end = self.current_batch_start + self.batch_size
 
-        for i in range(self.current_batch_start, batch_end):
-            if i >= len(update_indices):
-                break
-            index = update_indices[i]
+        for index in update_indices:
             if index < len(self.sprites) and self.sprites[index]:
                 self.sprite_indices[index] = (self.sprite_indices[index] + 1) % len(self.sprites[index])
-                self.image_labels[index].setPixmap(self.cv2_to_qpixmap(
-                    self.sprites[index][self.sprite_indices[index]],
-                    int(self.square_size),
-                    int(self.square_size)
-                ))
-
-        self.current_batch_start = (batch_end) % len(update_indices)
+                self.image_labels[index].setPixmap(self.sprites[index][self.sprite_indices[index]])
 
         self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
         self.update_special_label(self.least_similar_label, self.least_similar_indices, "least_similar")
+
+        # if self.is_updating_sprites:
+        #     return
+        #
+        # update_indices = list(range(len(self.image_labels) - 3))
+        # batch_end = self.current_batch_start + self.batch_size
+        #
+        # for i in range(self.current_batch_start, batch_end):
+        #     if i >= len(update_indices):
+        #         break
+        #     index = update_indices[i]
+        #     if index < len(self.sprites) and self.sprites[index]:
+        #         self.sprite_indices[index] = (self.sprite_indices[index] + 1) % len(self.sprites[index])
+        #         self.image_labels[index].setPixmap(self.cv2_to_qpixmap(
+        #             self.sprites[index][self.sprite_indices[index]],
+        #             int(self.square_size),
+        #             int(self.square_size)
+        #         ))
+        #
+        # self.current_batch_start = (batch_end) % len(update_indices)
+        #
+        # self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
+        # self.update_special_label(self.least_similar_label, self.least_similar_indices, "least_similar")
 
     def update_special_label(self, label, indices, label_type):
         if indices:
@@ -244,7 +254,7 @@ class ImageApp(QWidget):
                     sprites = self.all_sprites[grid_index]
                     if sprites:
                         self.sprites[grid_index] = sprites
-                        self.image_labels[grid_index].setPixmap(self.cv2_to_qpixmap(sprites[0], int(self.square_size), int(self.square_size)))
+                        self.image_labels[grid_index].setPixmap(self.sprites[grid_index][0])
                         self.update_most_similar()
                 self.current_most_index += 1
                 updates_done += 1
@@ -258,7 +268,7 @@ class ImageApp(QWidget):
                     sprites = self.all_sprites[grid_index]
                     if sprites:
                         self.sprites[grid_index] = sprites
-                        self.image_labels[grid_index].setPixmap(self.cv2_to_qpixmap(sprites[0], int(self.square_size), int(self.square_size)))
+                        self.image_labels[grid_index].setPixmap(self.sprites[grid_index][0])
                         self.update_least_similar()
                 self.current_least_index += 1
                 updates_done += 1
@@ -318,7 +328,7 @@ class ImageApp(QWidget):
         QApplication.quit()
 
     def resize_to_square(self, frame, size):
-        return cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR)
+        return frame
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -358,3 +368,4 @@ class ImageApp(QWidget):
         most_similar_x = (center_col + 2) * self.square_size + horizontal_offset
         most_similar_y = (center_row - 1) * self.square_size + vertical_offset
         self.most_similar_label.move(int(most_similar_x), int(most_similar_y))
+
