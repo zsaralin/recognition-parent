@@ -126,7 +126,7 @@ class VideoProcessor(QThread):
             cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
             resized_frame = self.resize_to_square(cropped_frame, self.square_size)
 
-            if bbox:
+            if bbox and config.create_sprites:
                 send_add_frame_request(resized_frame, (x, y, w, h))
 
             add_text_overlay(resized_frame)

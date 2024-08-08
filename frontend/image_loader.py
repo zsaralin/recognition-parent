@@ -3,7 +3,6 @@ import config
 from logger_setup import logger
 import time
 import concurrent.futures
-import cv2
 from image_store import image_store  # Import the global instance
 
 class ImageLoader(QThread):
@@ -107,24 +106,15 @@ class ImageLoader(QThread):
 
     def load_and_append_image(self, image_info, grid_index, sprites, indices_list):
         image_path = image_info['path']
-        image = image_store.get_image(image_path)
-        if image is None:
-            print(f"Error: Preloaded image at path {image_path} is None")
+        sub_images = image_store.get_sub_images(image_path)
+        if not sub_images:
+            print(f"Error: Preloaded sub-images for path {image_path} are None or empty")
             return False
 
-        loaded_images = []
+        num_images = image_info['numImages']
+        loaded_images = sub_images[:num_images]
 
-        for i in range(image_info['numImages']):
-            x = (i % 19) * 100
-            y = (i // 19) * 100
-            cropped_image = image[y:y + 100, x:x + 100]
-            if cropped_image.shape[0] == 100 and cropped_image.shape[1] == 100:
-                loaded_images.append(cropped_image)
-
-        for img in loaded_images:
-            sprites[grid_index].append(img)
-        for img in reversed(loaded_images):
-            sprites[grid_index].append(img)
+        sprites[grid_index].extend(loaded_images)
 
         indices_list.append(grid_index)
         return True

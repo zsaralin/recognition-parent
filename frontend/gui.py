@@ -95,6 +95,20 @@ class SliderOverlay(QWidget):
         self.gain_input.setText(str(int(config.gain)))
         self.gain_input.setFont(font)
 
+        self.jump_threshold_label = QLabel('Jump Threshold', self)
+        self.jump_threshold_label.setFont(font)
+        self.jump_threshold_slider = self.create_slider(0, 200, config.jump_threshold)
+        self.jump_threshold_input = self.create_input(0, 200, is_double=False)
+        self.jump_threshold_input.setText(str(config.jump_threshold))
+        self.jump_threshold_input.setFont(font)
+
+        self.min_face_size_label = QLabel('Min Face Size', self)
+        self.min_face_size_label.setFont(font)
+        self.min_face_size_slider = self.create_slider(0, 200, config.min_face_size)
+        self.min_face_size_input = self.create_input(0, 200, is_double=False)
+        self.min_face_size_input.setText(str(config.min_face_size))
+        self.min_face_size_input.setFont(font)
+
         self.create_sprites_checkbox = QCheckBox('Create Sprites', self)
         self.create_sprites_checkbox.setChecked(config.create_sprites)
         self.create_sprites_checkbox.setFont(font)
@@ -166,6 +180,14 @@ class SliderOverlay(QWidget):
         layout.addWidget(self.gain_label)
         layout.addWidget(self.gain_slider)
         layout.addWidget(self.gain_input)
+
+        layout.addWidget(self.jump_threshold_label)
+        layout.addWidget(self.jump_threshold_slider)
+        layout.addWidget(self.jump_threshold_input)
+
+        layout.addWidget(self.min_face_size_label)
+        layout.addWidget(self.min_face_size_slider)
+        layout.addWidget(self.min_face_size_input)
 
         layout.addWidget(self.create_sprites_checkbox)
         layout.addWidget(self.show_fps_checkbox)
@@ -282,6 +304,10 @@ class SliderOverlay(QWidget):
         elif sender == self.gain_slider:
             self.gain_input.setText(str(sender.value()))
             set_camera_control('gain', sender.value())  # Call the backend function
+        elif sender == self.jump_threshold_slider:
+            self.jump_threshold_input.setText(str(sender.value()))
+        elif sender == self.min_face_size_slider:
+            self.min_face_size_input.setText(str(sender.value()))
 
     def update_value_from_input(self):
         sender = self.sender()
@@ -315,6 +341,10 @@ class SliderOverlay(QWidget):
         elif sender == self.gain_input:
             self.gain_slider.setValue(int(value))
             set_camera_control('gain', int(value))  # Call the backend function
+        elif sender == self.jump_threshold_input:
+            self.jump_threshold_slider.setValue(int(value))
+        elif sender == self.min_face_size_input:
+            self.min_face_size_slider.setValue(int(value))
 
     def save_values_to_config(self):
         config.gif_delay = self.gif_delay_slider.value()
@@ -328,9 +358,11 @@ class SliderOverlay(QWidget):
         config.create_sprites = self.create_sprites_checkbox.isChecked()
         config.show_fps = self.show_fps_checkbox.isChecked()
         config.auto_update = self.auto_update_checkbox.isChecked()
-        config.show_saved_frame = self.show_saved_checkbox.isChecked()  # Save the new checkbox value
+        config.show_saved_frame = self.show_saved_checkbox.isChecked()
         config.auto_exposure_time = self.auto_exposure_time_slider.value()
         config.gain = self.gain_slider.value()
+        config.jump_threshold = self.jump_threshold_slider.value()
+        config.min_face_size = self.min_face_size_slider.value()
 
         # Retain the demo value from the previous configuration
         demo_value = getattr(config, 'demo', False)
@@ -352,6 +384,8 @@ class SliderOverlay(QWidget):
             config_file.write(f"show_saved_frame = {config.show_saved_frame}\n")
             config_file.write(f"auto_exposure_time = {config.auto_exposure_time}\n")
             config_file.write(f"gain = {config.gain}\n")
+            config_file.write(f"jump_threshold = {config.jump_threshold}\n")
+            config_file.write(f"min_face_size = {config.min_face_size}\n")
             config_file.write(f"demo = {config.demo}\n")  # Write the demo config value
 
         # Emit signal to update the config

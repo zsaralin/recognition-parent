@@ -99,8 +99,8 @@ def set_curr_face(mediapipe_result, frame, callback):
         if no_face_counter >= 1:
             print('no face')
             reset_face()
-            send_no_face_detected_request()
-
+            if config.create_sprites:
+                send_no_face_detected_request()
             if not log_no_face_detected:
                 log_no_face_detected = True
 

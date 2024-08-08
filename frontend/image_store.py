@@ -14,31 +14,27 @@ class ImageStore:
                     image_path = os.path.join(root, file)
                     image = cv2.imread(image_path)
                     if image is not None:
-                        self.preloaded_images[image_path] = image
+                        sub_images = self.split_into_sub_images(image, 100, 100)
+                        sub_images_with_reversed = sub_images + sub_images[::-1]
+                        self.preloaded_images[image_path] = sub_images_with_reversed
                         print(f"Preloaded image: {image_path}")
                     else:
                         logger.error(f"Failed to load image from path: {image_path}")
         logger.info('Preload images completed')
         return self.preloaded_images
 
-    def get_image(self, image_path):
-        return self.preloaded_images.get(image_path)
+    def split_into_sub_images(self, image, sub_width, sub_height):
+        sub_images = []
+        height, width, _ = image.shape
+        for y in range(0, height, sub_height):
+            for x in range(0, width, sub_width):
+                sub_image = image[y:y + sub_height, x:x + sub_width]
+                if sub_image.shape[0] == sub_height and sub_image.shape[1] == sub_width:
+                    sub_images.append(sub_image)
+        return sub_images
 
-    def add_image(self, image_path):
-        image_path = os.path.join("..", "databases", "database0", image_path)
-        logger.info(f"Trying to add image from path: {image_path}")
-        if os.path.exists(image_path):
-            image = cv2.imread(image_path)
-            if image is not None:
-                self.preloaded_images[image_path] = image
-                logger.info(f"Added new image to preloaded images: {image_path}")
-                return True
-            else:
-                logger.error(f"Failed to load image from path: {image_path}")
-                return False
-        else:
-            logger.error(f"Image path does not exist: {image_path}")
-            return False
+    def get_sub_images(self, image_path):
+        return self.preloaded_images.get(image_path, [])
 
 # Create a global instance
 image_store = ImageStore()

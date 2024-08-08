@@ -19,14 +19,16 @@ async function findSimilarImages(descriptor, numVids) {
                     const distance = euclideanDistance(descriptor, imageDescriptor);
                     const imagesDir = path.join(baseDir, entry.name, 'spritesheet');
                     const imageFiles = await fs.readdir(imagesDir);
-                    const imagePath = imageFiles.map(file => {
-                        const numImages = parseInt(file.split('.')[0], 10);
-                        return {
-                            path: path.join('..', 'databases','database0', entry.name, 'spritesheet', file),
-                            numImages: numImages,
-                            distance: distance,
-                        };
-                    });
+                    const imagePath = imageFiles
+                        .filter(file => path.extname(file).toLowerCase() === '.jpg') // Filter for JPG files
+                        .map(file => {
+                            const numImages = parseInt(file.split('.')[0], 10);
+                            return {
+                                path: path.join('..', 'databases', 'database0', entry.name, 'spritesheet', file),
+                                numImages: numImages,
+                                distance: distance,
+                            };
+                        });
                     images = images.concat(imagePath);
                 }
             } catch (error) {
@@ -47,7 +49,8 @@ async function findSimilarImages(descriptor, numVids) {
 
     // Select the top `numVids` least similar images
     const leastSimilar = images.slice(-numVids).reverse();
-    console.log(mostSimilar[0])
+
+    console.log(mostSimilar[0]);
     return { mostSimilar, leastSimilar };
 }
 

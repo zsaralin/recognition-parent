@@ -1,11 +1,8 @@
 import cv2
 import mediapipe as mp
 from new_faces import set_curr_face
+import config
 import math
-
-# Adjustable parameters
-MIN_FACE_SIZE = 100  # closer the face, larger the number
-JUMP_THRESHOLD = 50  # Threshold for detecting significant jumps in the bounding box position
 
 class MediaPipeFaceDetection:
     def __init__(self):
@@ -43,18 +40,18 @@ class MediaPipeFaceDetection:
                 if self.current_face_bbox is not None:
                     current_cx = self.current_face_bbox[0] + self.current_face_bbox[2] // 2
                     current_cy = self.current_face_bbox[1] + self.current_face_bbox[3] // 2
-                    if abs(face_center_x - current_cx) < JUMP_THRESHOLD and abs(face_center_y - current_cy) < JUMP_THRESHOLD:
+                    if abs(face_center_x - current_cx) < config.jump_threshold and abs(face_center_y - current_cy) < config.jump_threshold:
                         closest_face = bbox
                         break
 
             # Update the current face's bounding box
             if closest_face is not None:
-                if closest_face[2] < MIN_FACE_SIZE or closest_face[3] < MIN_FACE_SIZE or not self.is_face_facing_forward(frame, closest_face):
+                if closest_face[2] < config.min_face_size or closest_face[3] < config.min_face_size or not self.is_face_facing_forward(frame, closest_face):
                     results = None  # Face is too small or not facing forward
                 else:
                     if self.previous_cx is not None and self.previous_cy is not None:
-                        if abs(closest_face[0] + closest_face[2] // 2 - self.previous_cx) > JUMP_THRESHOLD or \
-                                abs(closest_face[1] + closest_face[3] // 2 - self.previous_cy) > JUMP_THRESHOLD:
+                        if abs(closest_face[0] + closest_face[2] // 2 - self.previous_cx) > config.jump_threshold or \
+                                abs(closest_face[1] + closest_face[3] // 2 - self.previous_cy) > config.jump_threshold:
                             results = None  # Significant jump in face position
                     self.current_face_bbox = closest_face
                     self.previous_cx = closest_face[0] + closest_face[2] // 2
