@@ -13,7 +13,7 @@ async def main():
         base_dir = "../databases/database0"  # Adjust this path as necessary
 
     app = QApplication(sys.argv)
-    await asyncio.get_event_loop().run_in_executor(None, image_store.preload_images, base_dir)
+    await asyncio.get_event_loop().run_in_executor(None, image_store.preload_images, app, base_dir)
 
     # Step 2: Create the Qt Application and the main window
     window = ImageApp()  # No need to pass preloaded images, they are in the ImageStore

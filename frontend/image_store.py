@@ -1,14 +1,28 @@
 import os
 import cv2
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtGui import QImage, QPixmap, QGuiApplication
 from logger_setup import logger
 
 class ImageStore:
     def __init__(self):
         self.preloaded_images = {}
 
-    def preload_images(self, base_dir):
+    def preload_images(self, app, base_dir, num_cols=21):
         logger.info('Starting preload images')
+
+        # Calculate square_size based on screen dimensions and number of columns
+        screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
+        largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
+        window_width = largest_screen_width // 2
+        square_size = window_width // num_cols
+
+        total_images = 0
+        preloaded_count = 0
+
+        # Count total images
+        for root, _, files in os.walk(base_dir):
+            total_images += len([file for file in files if file.endswith(('.png', '.jpg', '.jpeg'))])
+
         for root, _, files in os.walk(base_dir):
             for file in files:
                 if file.endswith(('.png', '.jpg', '.jpeg')):  # Adjust based on your image formats
@@ -18,12 +32,13 @@ class ImageStore:
                         num_images = self.get_num_images_from_filename(file)
                         sub_images = self.split_into_sub_images(image, 100, 100, num_images)
                         sub_images_with_reversed = sub_images + sub_images[::-1]
-                        pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, 100)) for img in sub_images_with_reversed]
+                        pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
                         self.preloaded_images[image_path] = pixmap_images
-                        print(f"Preloaded image: {image_path}")
+                        preloaded_count += 1
+                        print(f"Preloaded image: {image_path} ({preloaded_count}/{total_images})")
                     else:
                         logger.error(f"Failed to load image from path: {image_path}")
-        logger.info('Preload images completed')
+        logger.info(f'Preload images completed ({preloaded_count}/{total_images})')
         return self.preloaded_images
 
     def split_into_sub_images(self, image, sub_width, sub_height, num_images):
@@ -43,7 +58,7 @@ class ImageStore:
 
     def get_num_images_from_filename(self, filename):
         # Extract the number from the filename assuming the format is like "image_50.png"
-        num_images = min(155, int(filename.split('_')[-1].split('.')[0]))
+        num_images = min(50, int(filename.split('_')[-1].split('.')[0]))
         return num_images
 
     def resize_to_square(self, image, size):

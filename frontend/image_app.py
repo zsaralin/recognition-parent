@@ -328,7 +328,7 @@ class ImageApp(QWidget):
         QApplication.quit()
 
     def resize_to_square(self, frame, size):
-        return frame
+        return frame #frame.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
     def paintEvent(self, event):
         painter = QPainter(self)
