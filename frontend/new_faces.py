@@ -114,24 +114,35 @@ class NewFaces:
             return send_snapshot_to_server(cropped_face, callback)
 
         def backend_callback(future):
-            most_similar, least_similar, success = future.result()
-            self.awaiting_backend_response = False
+            try:
+                most_similar, least_similar, success = future.result()
+                self.awaiting_backend_response = False
 
-            if success:
-                self.previous_backend_success = True
-                self.curr_face = cropped_face
-                callback(most_similar, least_similar)
-            else:
-                self.previous_backend_success = False
-                logger.warning("Failed to get matches from server, will retry with the next frame.")
+                if success:
+                    self.previous_backend_success = True
+                    self.curr_face = cropped_face
+                    callback(most_similar, least_similar)
+                else:
+                    self.previous_backend_success = False
+                    logger.warning("Failed to get matches from server, will retry with the next frame.")
+            except Exception as e:
+                self.awaiting_backend_response = False
+                logger.exception(f"Error in backend_callback: {e}")
 
         future = self.executor.submit(backend_task)
         future.add_done_callback(backend_callback)
 
     def stop_all_threads(self):
+        logger.info("Stopping all threads in NewFaces...")
         self.stop_threads = True
-        self.executor.shutdown(wait=False)
 
-# Ensure cleanup on application exit
-import atexit
-atexit.register(lambda: NewFaces().stop_all_threads())
+        try:
+            logger.info("Shutting down executor with a timeout...")
+            self.executor.shutdown(wait=True, timeout=5)
+        except Exception as e:
+            logger.error(f"Shutdown failed: {e}")
+
+        logger.info("Executor shutdown complete.")
+
+        logger.info("All threads in NewFaces have been stopped.")
+

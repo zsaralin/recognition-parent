@@ -12,7 +12,6 @@ import time
 from one_euro import OneEuroFilter  # Import the One Euro filter
 import asyncio
 from backend_communicator import send_add_frame_request
-from new_faces import NewFaces
 
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QImage)
@@ -22,11 +21,12 @@ class VideoProcessor(QThread):
         super().__init__()
         self.camera_index = camera_index
         self.square_size = square_size
-        self.face_detector = MediaPipeFaceDetection()
+        self.new_faces = new_faces
+
+        self.face_detector = MediaPipeFaceDetection(self.new_faces)
         self.cap = cv2.VideoCapture(self.camera_index)
         self.callback = callback
         self.bbox_multiplier = config.bbox_multiplier
-        self.new_faces = new_faces
 
         if not self.cap.isOpened():
             logger.error("Failed to open camera.")
@@ -214,9 +214,12 @@ class VideoProcessor(QThread):
         print("VideoProcessor: Stopping")
         self.stopped = True
         self.timer.stop()
+        if self.isRunning():
+            print("VideoProcessor: Force terminating")
+            self.terminate()
+        
         self.cap.release()
-        self.quit()
-        self.wait()
+        print("VideoProcessor: Stopped")
 
     def update_config(self):
         self.bbox_multiplier = config.bbox_multiplier

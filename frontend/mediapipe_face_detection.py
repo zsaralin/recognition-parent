@@ -1,11 +1,10 @@
 import cv2
 import mediapipe as mp
-from new_faces import NewFaces
 import config
 import math
 from logger_setup import logger
 class MediaPipeFaceDetection:
-    def __init__(self):
+    def __init__(self, new_faces):
         self.mp_face_detection = mp.solutions.face_detection
         self.face_detection = self.mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
         self.mp_face_mesh = mp.solutions.face_mesh
@@ -13,7 +12,7 @@ class MediaPipeFaceDetection:
         self.current_face_bbox = None  # Store the current face's bounding box
         self.previous_cx = None
         self.previous_cy = None
-        self.new_faces = NewFaces()  # Create an instance of NewFaces
+        self.new_faces = new_faces  # Create an instance of NewFaces
 
     def detect_faces(self, frame, callback):
         results = self.face_detection.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -108,3 +107,8 @@ class MediaPipeFaceDetection:
         threshold = 0.75
         is_facing_forward = ratio < threshold
         return is_facing_forward
+
+    def stop(self):
+        if self.new_faces:
+            print("VideoProcessor: Stopping NewFaces")
+            self.new_faces.stop_all_threads()

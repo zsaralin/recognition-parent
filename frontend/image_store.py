@@ -6,6 +6,7 @@ from logger_setup import logger
 class ImageStore:
     def __init__(self):
         self.preloaded_images = {}
+        self.zoom_factor = 1.5  # Initial zoom factor, 1.0 means no zoom
 
     def preload_images(self, app, base_dir, num_cols=21):
         logger.info('Starting preload images')
@@ -13,7 +14,7 @@ class ImageStore:
         # Calculate square_size based on screen dimensions and number of columns
         screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
         largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
-        window_width = largest_screen_width // 2
+        window_width = largest_screen_width 
         square_size = window_width // num_cols
 
         total_images = 0
@@ -58,11 +59,32 @@ class ImageStore:
 
     def get_num_images_from_filename(self, filename):
         # Extract the number from the filename assuming the format is like "image_50.png"
-        num_images = min(50, int(filename.split('_')[-1].split('.')[0]))
+        num_images = int(filename.split('_')[-1].split('.')[0])
         return num_images
 
     def resize_to_square(self, image, size):
-        return cv2.resize(image, (size, size), interpolation=cv2.INTER_LINEAR)
+        # Calculate the new size based on the zoom factor
+        zoomed_size = int(size * self.zoom_factor)
+
+        # Calculate the center crop area
+        height, width, _ = image.shape
+        center_x, center_y = width // 2, height // 2
+        half_zoomed_size = zoomed_size // 2
+
+        # Crop the image around the center
+        cropped_image = image[
+            max(center_y - half_zoomed_size, 0):min(center_y + half_zoomed_size, height),
+            max(center_x - half_zoomed_size, 0):min(center_x + half_zoomed_size, width)
+        ]
+
+        # Resize the cropped image back to the square size
+        resized_image = cv2.resize(cropped_image, (size, size), interpolation=cv2.INTER_LINEAR)
+
+        # Calculate and print the compression or blowout ratio
+        compression_ratio = (cropped_image.shape[0] / size) * 100
+        print(f"Image zoom factor: {self.zoom_factor}x, Compression ratio: {compression_ratio}% of square size")
+
+        return resized_image
 
     def cv2_to_qpixmap(self, cv_img):
         height, width, channel = cv_img.shape

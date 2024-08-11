@@ -3,8 +3,8 @@ import math
 import cv2
 import numpy as np
 from PyQt5.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget, QShortcut
-from PyQt5.QtGui import QKeySequence, QPixmap, QImage, QPainter, QColor
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QRectF
+from PyQt5.QtGui import QKeySequence, QFontMetrics, QFont, QPixmap, QImage, QPainter, QColor
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QRectF, QRect
 
 import config
 from gui import SliderOverlay
@@ -56,6 +56,17 @@ class ImageApp(QWidget):
         self.is_updating_sprites = False
         self.update_timer.timeout.connect(self.update_sprites)
         self.update_timer.start(config.gif_delay)
+
+        self.high_res_most_similar_sprites = []
+        self.high_res_least_similar_sprites = []
+
+        self.most_similar_timer = QTimer(self)
+        self.most_similar_timer.timeout.connect(self.update_least_similar)
+        self.most_similar_timer.start(config.gif_delay)
+
+        self.least_similar_timer = QTimer(self)
+        self.least_similar_timer.timeout.connect(self.update_most_similar)
+        self.least_similar_timer.start(config.gif_delay)
 
     def initUI(self):
         self.layout = QVBoxLayout()
@@ -144,56 +155,54 @@ class ImageApp(QWidget):
         logger.info("All images have been loaded.")
         self.image_loader_running = False
 
+    def update_most_similar(self):
+        if self.high_res_most_similar_sprites:
+            sprite = self.high_res_most_similar_sprites[self.most_similar_sprite_index]
+            self.most_similar_label.setPixmap(sprite)
+            self.most_similar_sprite_index = (self.most_similar_sprite_index + 1) % len(self.high_res_most_similar_sprites)
+
+    def update_least_similar(self):
+        if self.high_res_least_similar_sprites:
+            sprite = self.high_res_least_similar_sprites[self.least_similar_sprite_index]
+            self.least_similar_label.setPixmap(sprite)
+            self.least_similar_sprite_index = (self.least_similar_sprite_index + 1) % len(self.high_res_least_similar_sprites)
+
     def update_sprites(self):
+        if self.is_updating_sprites:
+            return
         update_indices = list(range(len(self.image_labels) - 3))
+        # Remove direct calls to update_most_similar and update_least_similar here
+        # Special labels are updated independently by their own timers
 
         for index in update_indices:
             if index < len(self.sprites) and self.sprites[index]:
                 self.sprite_indices[index] = (self.sprite_indices[index] + 1) % len(self.sprites[index])
                 self.image_labels[index].setPixmap(self.sprites[index][self.sprite_indices[index]])
 
-        self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
-        self.update_special_label(self.least_similar_label, self.least_similar_indices, "least_similar")
-
-        # if self.is_updating_sprites:
-        #     return
-        #
-        # update_indices = list(range(len(self.image_labels) - 3))
-        # batch_end = self.current_batch_start + self.batch_size
-        #
-        # for i in range(self.current_batch_start, batch_end):
-        #     if i >= len(update_indices):
-        #         break
-        #     index = update_indices[i]
-        #     if index < len(self.sprites) and self.sprites[index]:
-        #         self.sprite_indices[index] = (self.sprite_indices[index] + 1) % len(self.sprites[index])
-        #         self.image_labels[index].setPixmap(self.cv2_to_qpixmap(
-        #             self.sprites[index][self.sprite_indices[index]],
-        #             int(self.square_size),
-        #             int(self.square_size)
-        #         ))
-        #
-        # self.current_batch_start = (batch_end) % len(update_indices)
-        #
-        # self.update_special_label(self.most_similar_label, self.most_similar_indices, "most_similar")
-        # self.update_special_label(self.least_similar_label, self.least_similar_indices, "least_similar")
-
-    def update_special_label(self, label, indices, label_type):
-        if indices:
-            index = indices[0]
-            if index < len(self.sprites) and len(self.sprites[index]) > 0:
-                sprite_index = getattr(self, f"{label_type}_sprite_index")
-                sprite_index = (sprite_index + 1) % len(self.sprites[index])
-                setattr(self, f"{label_type}_sprite_index", sprite_index)
-
-                sprite = self.sprites[index][sprite_index]
-                high_res_sprite = self.resize_to_square(sprite, int(self.square_size * 3))
-                add_text_overlay(high_res_sprite, "Closest Match" if label_type == "most_similar" else "Farthest Match")
-                label.setPixmap(self.cv2_to_qpixmap(high_res_sprite, int(self.square_size * 3), int(self.square_size * 3)))
-            else:
-                logger.error(f"Index out of range or empty sprite list for {label_type}: {index}")
+        # Handle next batch update if needed
+        if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
+            QTimer.singleShot(config.update_delay, self.update_next_sprites)
         else:
-            logger.error(f"No indices available for {label_type}")
+            logger.info("All sprites have been batch loaded into the grid.")
+            self.is_updating_sprites = False
+
+
+
+    def qimage_to_cv2(self, qimage):
+        """Convert QImage to OpenCV format (numpy array)"""
+        qimage = qimage.convertToFormat(QImage.Format.Format_RGB32)
+        width = qimage.width()
+        height = qimage.height()
+        ptr = qimage.bits()
+        ptr.setsize(qimage.byteCount())
+        arr = np.array(ptr).reshape(height, width, 4)
+        return cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+
+    def cv2_to_qimage(self, cv_img):
+        """Convert OpenCV image (numpy array) to QImage"""
+        height, width, channel = cv_img.shape
+        bytes_per_line = 3 * width
+        return QImage(cv_img.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
     def update_video_label(self, q_img):
         self.video_label.setPixmap(QPixmap.fromImage(q_img))
@@ -239,15 +248,46 @@ class ImageApp(QWidget):
         self.least_similar_indices = least_similar_indices
         self.current_most_index = 0
         self.current_least_index = 0
+
+        # Preprocess and store high-resolution sprites
+        self.preprocess_high_res_sprites()
+
         self.update_next_sprites()
+
+    def preprocess_high_res_sprites(self):
+        """Preprocess high-resolution sprites with overlays for closest and farthest matches."""
+        self.high_res_most_similar_sprites.clear()
+        self.high_res_least_similar_sprites.clear()
+
+        # Process all sprites for the closest match (first index in most_similar_indices)
+        if self.most_similar_indices:
+            most_similar_index = self.most_similar_indices[0]
+            if most_similar_index < len(self.sprites) and self.sprites[most_similar_index]:
+                for sprite in self.sprites[most_similar_index]:
+                    high_res_sprite = self.preprocess_sprite(sprite, "Closest Match")
+                    self.high_res_most_similar_sprites.append(high_res_sprite)
+
+        # Process all sprites for the farthest match (first index in least_similar_indices)
+        if self.least_similar_indices:
+            least_similar_index = self.least_similar_indices[0]
+            if least_similar_index < len(self.sprites) and self.sprites[least_similar_index]:
+                for sprite in self.sprites[least_similar_index]:
+                    high_res_sprite = self.preprocess_sprite(sprite, "Farthest Match")
+                    self.high_res_least_similar_sprites.append(high_res_sprite)
+
+        # Reset the sprite indices
+        self.most_similar_sprite_index = 0
+        self.least_similar_sprite_index = 0
 
     def update_next_sprites(self):
         self.is_updating_sprites = True
 
-        total_updates = min(self.update_batch_size, (len(self.most_similar_indices) - self.current_most_index) + (len(self.least_similar_indices) - self.current_least_index))
+        # Determine the number of updates to perform in this batch
+        updates_in_batch = min(self.update_batch_size, (len(self.most_similar_indices) - self.current_most_index) + (len(self.least_similar_indices) - self.current_least_index))
         updates_done = 0
 
-        while updates_done < total_updates:
+        # Process the updates for most similar sprites
+        while updates_done < updates_in_batch:
             if self.current_most_index < len(self.most_similar_indices):
                 grid_index = self.most_similar_indices[self.current_most_index]
                 if grid_index < len(self.sprites):
@@ -255,13 +295,14 @@ class ImageApp(QWidget):
                     if sprites:
                         self.sprites[grid_index] = sprites
                         self.image_labels[grid_index].setPixmap(self.sprites[grid_index][0])
-                        self.update_most_similar()
+                        # self.update_most_similar()
                 self.current_most_index += 1
                 updates_done += 1
 
-            if updates_done >= total_updates:
+            if updates_done >= updates_in_batch:
                 break
 
+            # Process the updates for least similar sprites
             if self.current_least_index < len(self.least_similar_indices):
                 grid_index = self.least_similar_indices[self.current_least_index]
                 if grid_index < len(self.sprites):
@@ -269,38 +310,42 @@ class ImageApp(QWidget):
                     if sprites:
                         self.sprites[grid_index] = sprites
                         self.image_labels[grid_index].setPixmap(self.sprites[grid_index][0])
-                        self.update_least_similar()
+                        # self.update_least_similar()
                 self.current_least_index += 1
                 updates_done += 1
 
-        if self.current_most_index >= len(self.most_similar_indices) and self.current_least_index >= len(self.least_similar_indices):
+        # If there are more updates to perform, delay the next batch
+        if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
+            QTimer.singleShot(config.update_delay, self.update_next_sprites)
+        else:
             logger.info("All sprites have been batch loaded into the grid.")
             self.is_updating_sprites = False
-        else:
-            QTimer.singleShot(config.update_delay, self.update_next_sprites)
 
-    def update_most_similar(self):
-        if self.most_similar_indices:
-            most_similar_index = self.most_similar_indices[0]
-            if most_similar_index < len(self.sprites) and len(self.sprites[most_similar_index]) > self.most_similar_sprite_index:
-                sprite = self.sprites[most_similar_index][self.most_similar_sprite_index]
-                high_res_sprite = self.resize_to_square(sprite, int(self.square_size * 3))
-                add_text_overlay(high_res_sprite, "Closest Match")
-                resized_sprite = self.resize_to_square(high_res_sprite, int(self.square_size * 3))
-                self.most_similar_label.setPixmap(self.cv2_to_qpixmap(resized_sprite, int(self.square_size * 3), int(self.square_size * 3)))
-                self.most_similar_sprite_index = (self.most_similar_sprite_index + 1) % len(self.sprites[most_similar_index])
+    def preprocess_sprite(self, sprite, overlay_text):
+        """Helper function to preprocess a single sprite by resizing and adding an overlay."""
+        # Convert QPixmap to QImage
+        qimage = sprite.toImage()
 
-    def update_least_similar(self):
-        if self.least_similar_indices:
-            least_similar_index = self.least_similar_indices[0]
-            if least_similar_index < len(self.sprites) and len(self.sprites[least_similar_index]) > self.least_similar_sprite_index:
-                sprite = self.sprites[least_similar_index][self.least_similar_sprite_index]
-                high_res_sprite = self.resize_to_square(sprite, int(self.square_size * 3))
-                add_text_overlay(high_res_sprite, "Farthest Match")
-                resized_sprite = self.resize_to_square(high_res_sprite, int(self.square_size * 3))
-                self.least_similar_label.setPixmap(self.cv2_to_qpixmap(resized_sprite, int(self.square_size * 3), int(self.square_size * 3)))
-                self.least_similar_sprite_index = (self.least_similar_sprite_index + 1) % len(self.sprites[least_similar_index])
+        # Resize the QImage to 3x its original size
+        resized_qimage = qimage.scaled(
+            qimage.width() * 3,
+            qimage.height() * 3,
+            Qt.IgnoreAspectRatio,
+            Qt.SmoothTransformation
+        )
 
+        # Convert the resized QImage to OpenCV format
+        cv_image = self.qimage_to_cv2(resized_qimage)
+
+        # Apply the text overlay
+        add_text_overlay(cv_image, overlay_text)
+
+        # Convert the modified OpenCV image back to QImage
+        qimage_with_overlay = self.cv2_to_qimage(cv_image)
+
+        # Convert QImage back to QPixmap
+        return QPixmap.fromImage(qimage_with_overlay)
+    
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_G:
             if self.overlay_visible[0]:
@@ -319,13 +364,37 @@ class ImageApp(QWidget):
             self.close_app()
 
     def close_app(self):
-        self.new_faces.stop_all_threads()
-        self.video_processor.stop()
-        self.video_processor.wait()
+        logger.info("Closing application...")
+
+        # Stop any ongoing updates
+        self.update_timer.stop()
+
+        # Stop the video processor
+        if hasattr(self, 'video_processor') and self.video_processor is not None:
+            logger.info("Stopping video processor...")
+            self.video_processor.stop()
+            self.video_processor.wait(1000)  # Wait for up to 1 second
+            if self.video_processor.isRunning():
+                logger.warning("Video processor did not stop gracefully. Terminating...")
+                self.video_processor.terminate()
+            logger.info("Video processor stopped.")
+
+        # Stop any ongoing image loading
         if hasattr(self, 'image_loader_thread') and self.image_loader_thread.isRunning():
+            logger.info("Stopping image loader thread...")
             self.image_loader_thread.quit()
-            self.image_loader_thread.wait()
-        QApplication.quit()
+            self.image_loader_thread.wait(1000)  # Wait for up to 1 second
+            if self.image_loader_thread.isRunning():
+                logger.warning("Image loader thread did not stop gracefully. Terminating...")
+                self.image_loader_thread.terminate()
+            logger.info("Image loader thread stopped.")
+
+        # Stop all other threads in NewFaces
+        logger.info("Stopping all NewFaces threads...")
+        self.new_faces.stop_all_threads()
+
+        # Force the application to quit
+        logger.info("Forcing application to quit...")
 
     def resize_to_square(self, frame, size):
         return frame #frame.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)

@@ -3,7 +3,11 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
 import config
 from backend_communicator import set_camera_control
-
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel, QLineEdit, QPushButton, QCheckBox
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
+import config
+from backend_communicator import set_camera_control
 class SliderOverlay(QWidget):
     config_changed = pyqtSignal()  # Signal to notify when config changes
     font_size_changed = pyqtSignal(float)  # Signal to notify when font size changes
@@ -14,100 +18,87 @@ class SliderOverlay(QWidget):
         self.setFocusPolicy(Qt.StrongFocus)  # Ensure the widget can receive key events
         self.setFixedSize(320, 600)  # Set a fixed size for the window with extra width and height
         self.move(10, 10)  # Move the window to the top-left corner of the screen
-        self.setStyleSheet("""
-            background-color: white;  /* Set the background color to white */
-        """)
+
+        # Set the entire widget's background color to white
+        self.setStyleSheet("background-color: lightpink;")
 
     def initUI(self):
-        layout = QVBoxLayout()
-        layout.setSpacing(0)  # Set spacing between widgets
-        layout.setContentsMargins(15, 15, 15, 15)  # Set margins around the layout
+        wrapper = QWidget()
+        wrapper.setStyleSheet("background-color: lightpink; padding: 5px;")
+        
+        main_layout = QVBoxLayout(wrapper)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.setLayout(QVBoxLayout())
+        self.layout().addWidget(wrapper)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        
         font = QFont()
         font.setPointSize(10)  # Reduce font size for all widgets
 
-        self.gif_delay_label = QLabel('GIF Delay', self)
-        self.gif_delay_label.setFont(font)
+        # Function to create a label, slider, and input box in a horizontal layout
+        def create_slider_group(label_text, slider, input_box):
+            layout = QHBoxLayout()
+            layout.setSpacing(5)  # Adjust spacing between elements in the group
+            layout.setContentsMargins(0, 0, 0, 0)  # Remove margins around the elements
+
+            label = QLabel(label_text, self)
+            label.setFont(font)
+            layout.addWidget(label)
+
+            layout.addWidget(slider)
+            layout.addWidget(input_box)
+            return layout
+
+        # Creating the sliders and input fields as before
         self.gif_delay_slider = self.create_slider(1, 100, config.gif_delay)
         self.gif_delay_input = self.create_input(1, 100, is_double=False)
         self.gif_delay_input.setText(str(config.gif_delay))
-        self.gif_delay_input.setFont(font)
 
-        self.num_cols_label = QLabel('Num Cols', self)
-        self.num_cols_label.setFont(font)
-        self.num_cols_slider = self.create_slider(11, 41, config.num_cols, step=2)  # Ensure slider steps are odd
-        self.num_cols_input = self.create_input(11, 41, is_double=False, only_odd=True)  # Enforce odd numbers in input
+        self.num_cols_slider = self.create_slider(11, 41, config.num_cols, step=2)
+        self.num_cols_input = self.create_input(11, 41, is_double=False, only_odd=True)
         self.num_cols_input.setText(str(config.num_cols))
-        self.num_cols_input.setFont(font)
 
-        self.middle_y_pos_label = QLabel('Middle Y Pos', self)
-        self.middle_y_pos_label.setFont(font)
         self.middle_y_pos_slider = self.create_slider(-10, 10, config.middle_y_pos)
         self.middle_y_pos_input = self.create_input(-10, 10, is_double=False)
         self.middle_y_pos_input.setText(str(config.middle_y_pos))
-        self.middle_y_pos_input.setFont(font)
 
-        self.update_count_label = QLabel('Update Count', self)
-        self.update_count_label.setFont(font)
         self.update_count_slider = self.create_slider(1, 100, config.update_count)
         self.update_count_input = self.create_input(1, 100, is_double=False)
         self.update_count_input.setText(str(config.update_count))
-        self.update_count_input.setFont(font)
 
-        self.update_delay_label = QLabel('Update Delay', self)
-        self.update_delay_label.setFont(font)
         self.update_delay_slider = self.create_slider(0, 200, config.update_delay)
         self.update_delay_input = self.create_input(0, 200, is_double=False)
         self.update_delay_input.setText(str(config.update_delay))
-        self.update_delay_input.setFont(font)
 
-        self.update_int_label = QLabel('Update Interval', self)
-        self.update_int_label.setFont(font)
         self.update_int_slider = self.create_slider(5, 100, config.update_int)
         self.update_int_input = self.create_input(5, 100, is_double=False)
         self.update_int_input.setText(str(config.update_int))
-        self.update_int_input.setFont(font)
 
-        self.bbox_multiplier_label = QLabel('BBox Multiplier', self)
-        self.bbox_multiplier_label.setFont(font)
         self.bbox_multiplier_slider = self.create_slider(5, 30, int(config.bbox_multiplier * 10))
         self.bbox_multiplier_input = self.create_input(5, 30, is_double=False)
         self.bbox_multiplier_input.setText(str(int(config.bbox_multiplier * 10)))
-        self.bbox_multiplier_input.setFont(font)
 
-        self.font_size_label = QLabel('Font Size', self)
-        self.font_size_label.setFont(font)
         self.font_size_slider = self.create_double_slider(0.1, 3.0, config.font_size, step=0.1)
         self.font_size_input = self.create_input(0.1, 3.0, is_double=True)
         self.font_size_input.setText(str(config.font_size))
-        self.font_size_input.setFont(font)
 
-        self.auto_exposure_time_label = QLabel('Auto Exposure Time', self)
-        self.auto_exposure_time_label.setFont(font)
         self.auto_exposure_time_slider = self.create_slider(50, 10000, int(config.auto_exposure_time))
         self.auto_exposure_time_input = self.create_input(50, 10000, is_double=False)
         self.auto_exposure_time_input.setText(str(int(config.auto_exposure_time)))
-        self.auto_exposure_time_input.setFont(font)
 
-        self.gain_label = QLabel('Gain', self)
-        self.gain_label.setFont(font)
         self.gain_slider = self.create_slider(1, 128, int(config.gain))
         self.gain_input = self.create_input(1, 128, is_double=False)
         self.gain_input.setText(str(int(config.gain)))
-        self.gain_input.setFont(font)
 
-        self.jump_threshold_label = QLabel('Jump Threshold', self)
-        self.jump_threshold_label.setFont(font)
         self.jump_threshold_slider = self.create_slider(0, 200, config.jump_threshold)
         self.jump_threshold_input = self.create_input(0, 200, is_double=False)
         self.jump_threshold_input.setText(str(config.jump_threshold))
-        self.jump_threshold_input.setFont(font)
 
-        self.min_face_size_label = QLabel('Min Face Size', self)
-        self.min_face_size_label.setFont(font)
         self.min_face_size_slider = self.create_slider(0, 200, config.min_face_size)
         self.min_face_size_input = self.create_input(0, 200, is_double=False)
         self.min_face_size_input.setText(str(config.min_face_size))
-        self.min_face_size_input.setFont(font)
 
         self.create_sprites_checkbox = QCheckBox('Create Sprites', self)
         self.create_sprites_checkbox.setChecked(config.create_sprites)
@@ -141,62 +132,28 @@ class SliderOverlay(QWidget):
         """)
         self.save_button.clicked.connect(self.save_values_to_config)
 
-        layout.addWidget(self.gif_delay_label)
-        layout.addWidget(self.gif_delay_slider)
-        layout.addWidget(self.gif_delay_input)
+        # Adding the groups to the main layout
+        main_layout.addLayout(create_slider_group('GIF Delay', self.gif_delay_slider, self.gif_delay_input))
+        main_layout.addLayout(create_slider_group('Num Cols', self.num_cols_slider, self.num_cols_input))
+        main_layout.addLayout(create_slider_group('Middle Y Pos', self.middle_y_pos_slider, self.middle_y_pos_input))
+        main_layout.addLayout(create_slider_group('Update Count', self.update_count_slider, self.update_count_input))
+        main_layout.addLayout(create_slider_group('Update Delay', self.update_delay_slider, self.update_delay_input))
+        main_layout.addLayout(create_slider_group('Update Interval', self.update_int_slider, self.update_int_input))
+        main_layout.addLayout(create_slider_group('BBox Multiplier', self.bbox_multiplier_slider, self.bbox_multiplier_input))
+        main_layout.addLayout(create_slider_group('Font Size', self.font_size_slider, self.font_size_input))
+        main_layout.addLayout(create_slider_group('Auto Exposure Time', self.auto_exposure_time_slider, self.auto_exposure_time_input))
+        main_layout.addLayout(create_slider_group('Gain', self.gain_slider, self.gain_input))
+        main_layout.addLayout(create_slider_group('Jump Threshold', self.jump_threshold_slider, self.jump_threshold_input))
+        main_layout.addLayout(create_slider_group('Min Face Size', self.min_face_size_slider, self.min_face_size_input))
 
-        layout.addWidget(self.num_cols_label)
-        layout.addWidget(self.num_cols_slider)
-        layout.addWidget(self.num_cols_input)
+        # Add checkboxes and button directly
+        main_layout.addWidget(self.create_sprites_checkbox)
+        main_layout.addWidget(self.show_fps_checkbox)
+        main_layout.addWidget(self.auto_update_checkbox)
+        main_layout.addWidget(self.show_saved_checkbox)
+        main_layout.addWidget(self.save_button)
 
-        layout.addWidget(self.middle_y_pos_label)
-        layout.addWidget(self.middle_y_pos_slider)
-        layout.addWidget(self.middle_y_pos_input)
-
-        layout.addWidget(self.update_count_label)
-        layout.addWidget(self.update_count_slider)
-        layout.addWidget(self.update_count_input)
-
-        layout.addWidget(self.update_delay_label)
-        layout.addWidget(self.update_delay_slider)
-        layout.addWidget(self.update_delay_input)
-
-        layout.addWidget(self.update_int_label)
-        layout.addWidget(self.update_int_slider)
-        layout.addWidget(self.update_int_input)
-
-        layout.addWidget(self.bbox_multiplier_label)
-        layout.addWidget(self.bbox_multiplier_slider)
-        layout.addWidget(self.bbox_multiplier_input)
-
-        layout.addWidget(self.font_size_label)
-        layout.addWidget(self.font_size_slider)
-        layout.addWidget(self.font_size_input)
-
-        layout.addWidget(self.auto_exposure_time_label)
-        layout.addWidget(self.auto_exposure_time_slider)
-        layout.addWidget(self.auto_exposure_time_input)
-
-        layout.addWidget(self.gain_label)
-        layout.addWidget(self.gain_slider)
-        layout.addWidget(self.gain_input)
-
-        layout.addWidget(self.jump_threshold_label)
-        layout.addWidget(self.jump_threshold_slider)
-        layout.addWidget(self.jump_threshold_input)
-
-        layout.addWidget(self.min_face_size_label)
-        layout.addWidget(self.min_face_size_slider)
-        layout.addWidget(self.min_face_size_input)
-
-        layout.addWidget(self.create_sprites_checkbox)
-        layout.addWidget(self.show_fps_checkbox)
-        layout.addWidget(self.auto_update_checkbox)
-        layout.addWidget(self.show_saved_checkbox)  # Add the new checkbox to the layout
-
-        layout.addWidget(self.save_button)
-
-        self.setLayout(layout)
+        self.setLayout(main_layout)
         self.setWindowTitle('Overlay Controls')
 
     def create_slider(self, min_value, max_value, default_value=None, step=1):
@@ -267,7 +224,7 @@ class SliderOverlay(QWidget):
             QLineEdit {
                 background-color: #f0f0f0;
                 border: none;
-                padding: 5px;
+                padding: 3px; /* Reduced padding */
                 border-radius: 3px;
             }
         """)
