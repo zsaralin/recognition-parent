@@ -14,4 +14,4 @@ auto_exposure_time = 4560
 gain = 4
 jump_threshold = 50
 min_face_size = 100
-demo = False
+demo = True

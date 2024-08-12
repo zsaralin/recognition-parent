@@ -5,11 +5,12 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 import config
 from logger_setup import logger
-from backend_communicator import send_snapshot_to_server, send_no_face_detected_request, send_add_frame_request
+from backend_communicator import send_snapshot_to_server, send_no_face_detected_request
 
 class NewFaces:
     def __init__(self):
         self.curr_face = None
+        self.curr_bbox = None
         self.no_face_counter = 0
         self.previous_backend_success = True
         self.awaiting_backend_response = False
@@ -24,12 +25,14 @@ class NewFaces:
         self.stop_threads = False
         self.executor = ThreadPoolExecutor(max_workers=5)
         self.cropped_frame = None
+        self.position_threshold = 50  # Pixel distance threshold for switching faces
 
         if config.auto_update:
             self.start_periodic_reset()
 
     def reset_face(self):
         self.curr_face = None
+        self.curr_bbox = None
         self.detection_counter = 0
         self.frames_sent = False
         self.frame_buffer = []
@@ -39,7 +42,7 @@ class NewFaces:
     def periodic_reset(self):
         if self.stop_threads:
             return
-        if self.mediapipe_valid_detection:
+        if self.face_detected:
             self.reset_face()
         threading.Timer(config.update_int, self.periodic_reset).start()
 
@@ -51,6 +54,39 @@ class NewFaces:
     def set_cropped_frame(self, cropped_frame):
         self.cropped_frame = cropped_frame
         logger.info(f"Set cropped frame with shape: {cropped_frame.shape} and type: {type(cropped_frame)}")
+
+    def get_closest_face(self, detected_faces):
+        """Find the detected face closest to the last known position of the current face."""
+        if self.curr_bbox is None:
+            return detected_faces[0]  # Default to the first face if no current face is tracked
+
+        min_distance = float('inf')
+        closest_face = None
+
+        for face in detected_faces:
+            bbox = self.extract_bbox(face)
+            if bbox is not None:
+                distance = self.calculate_bbox_distance(self.curr_bbox, bbox)
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_face = face
+
+        return closest_face
+
+    def extract_bbox(self, detection):
+        """Extract the bounding box from a detection result."""
+        if detection.location_data and detection.location_data.relative_bounding_box:
+            bbox = detection.location_data.relative_bounding_box
+            return bbox.xmin, bbox.ymin, bbox.width, bbox.height
+        return None
+
+    def calculate_bbox_distance(self, bbox1, bbox2):
+        """Calculate the Euclidean distance between the centers of two bounding boxes."""
+        center1_x = bbox1[0] + bbox1[2] / 2
+        center1_y = bbox1[1] + bbox1[3] / 2
+        center2_x = bbox2[0] + bbox2[2] / 2
+        center2_y = bbox2[1] + bbox2[3] / 2
+        return np.sqrt((center1_x - center2_x) ** 2 + (center1_y - center2_y) ** 2)
 
     def set_curr_face(self, mediapipe_result, frame, callback):
         current_time = time.time()
@@ -65,23 +101,31 @@ class NewFaces:
             self.no_face_counter = 0
             self.detection_counter += 1
 
+            # Find the closest face to the last known face position
+            closest_face = self.get_closest_face(mediapipe_result.detections)
+            bbox = self.extract_bbox(closest_face)
+            self.curr_bbox = bbox
+
             cropped_face = self.cropped_frame  # Use the cropped frame from VideoProcessor
 
             if cropped_face is None or cropped_face.size == 0:
                 logger.error("Cropped face is empty.")
                 return
 
-            if self.curr_face is None and self.detection_counter >= 10:
-                logger.info('New face detected')
+            if self.curr_face is None:
+                if self.detection_counter >= 10:
+                    logger.info('New face detected')
 
+                    self.curr_face = cropped_face
+                    self.detection_counter = 0
+                    self.frames_sent = False
+                    self.frame_buffer = []
+                    self.bbox_buffer = []
+
+                    # Send the cropped face to the snapshot server
+                    self.send_cropped_face_to_server(cropped_face, callback)
+            else:
                 self.curr_face = cropped_face
-                self.detection_counter = 0
-                self.frames_sent = False
-                self.frame_buffer = []
-                self.bbox_buffer = []
-
-                # Send the cropped face to the snapshot server
-                self.send_cropped_face_to_server(cropped_face, callback)
 
         else:
             self.face_detected = False
@@ -143,6 +187,4 @@ class NewFaces:
             logger.error(f"Shutdown failed: {e}")
 
         logger.info("Executor shutdown complete.")
-
         logger.info("All threads in NewFaces have been stopped.")
-

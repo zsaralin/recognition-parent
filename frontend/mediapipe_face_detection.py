@@ -107,8 +107,3 @@ class MediaPipeFaceDetection:
         threshold = 0.75
         is_facing_forward = ratio < threshold
         return is_facing_forward
-
-    def stop(self):
-        if self.new_faces:
-            print("VideoProcessor: Stopping NewFaces")
-            self.new_faces.stop_all_threads()
