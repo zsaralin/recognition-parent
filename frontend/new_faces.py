@@ -109,7 +109,8 @@ class NewFaces:
                 distance = self.calculate_bbox_distance(self.curr_bbox, bbox)
                 if distance > self.position_threshold:
                     logger.info(f"Significant movement detected. Resetting face due to distance: {distance}")
-                    self.reset_face()
+                    self.treat_as_no_face_detected()
+                    return
 
             self.curr_bbox = bbox
 
@@ -135,17 +136,21 @@ class NewFaces:
                 self.curr_face = cropped_face
 
         else:
-            self.face_detected = False
-            self.no_face_counter += 1
-            self.detection_counter = 0
-            self.mediapipe_valid_detection = False
-            if self.no_face_counter >= 1:
-                logger.info('No face detected')
-                self.reset_face()
-                if config.create_sprites:
-                    send_no_face_detected_request()
-                if not self.log_no_face_detected:
-                    self.log_no_face_detected = True
+            self.treat_as_no_face_detected()
+
+    def treat_as_no_face_detected(self):
+        """Handles the logic when no face is detected, including when a significant jump occurs."""
+        self.face_detected = False
+        self.no_face_counter += 1
+        self.detection_counter = 0
+        self.mediapipe_valid_detection = False
+        if self.no_face_counter >= 1:
+            logger.info('No face detected or significant movement detected')
+            self.reset_face()
+            if config.create_sprites:
+                send_no_face_detected_request()
+            if not self.log_no_face_detected:
+                self.log_no_face_detected = True
 
     def send_cropped_face_to_server(self, cropped_face, callback):
         if self.awaiting_backend_response:

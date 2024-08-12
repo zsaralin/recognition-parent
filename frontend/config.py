@@ -13,5 +13,5 @@ show_saved_frame = True
 auto_exposure_time = 1399
 gain = 12
 jump_threshold = 50
-min_face_size = 100
-demo = False
+min_face_size = 0
+demo = True

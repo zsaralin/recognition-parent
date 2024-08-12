@@ -14,7 +14,7 @@ awaiting_response = False
 BASE_SERVER_URL = "http://localhost:3000"
 
 def convert_image_to_data_url(image):
-    if image is None:
+    if image is None or image.size == 0:
         logger.error("convert_image_to_data_url: image is None")
         return None
 
@@ -35,7 +35,7 @@ def send_snapshot_to_server(frame, callback):
         print("Already waiting for a response. Skipping this request.")
         return None, None, False
 
-    if frame is None:
+    if frame is None or frame.size == 0:
         logger.error("send_snapshot_to_server: frame is None")
         return None, None, False
 

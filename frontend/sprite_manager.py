@@ -19,7 +19,7 @@ class SpriteManager(QObject):
         self.sprite_arranger_running = False
         self.middle_y_pos = middle_y_pos
         self.square_size = square_size
-        self.batch_size = 50
+        self.batch_size = config.update_count
 
         self.high_res_most_similar_sprites = []
         self.high_res_least_similar_sprites = []
@@ -135,16 +135,21 @@ class SpriteManager(QObject):
 
     def update_most_similar(self):
         if self.high_res_most_similar_sprites:
+            print("Updating most similar sprite.")
             sprite = self.high_res_most_similar_sprites[self.most_similar_sprite_index]
             self.most_similar_updated.emit(sprite)
             self.most_similar_sprite_index = (self.most_similar_sprite_index + 1) % len(self.high_res_most_similar_sprites)
+        else:
+            print("No high_res_most_similar_sprites available to update.")
 
     def update_least_similar(self):
         if self.high_res_least_similar_sprites:
+            print("Updating least similar sprite.")
             sprite = self.high_res_least_similar_sprites[self.least_similar_sprite_index]
             self.least_similar_updated.emit(sprite)
             self.least_similar_sprite_index = (self.least_similar_sprite_index + 1) % len(self.high_res_least_similar_sprites)
-
+        else:
+            print("No high_res_least_similar_sprites available to update.")
     def apply_static_overlay(self, sprite, overlay):
         painter = QPainter(sprite)
         painter.drawPixmap(0, 0, overlay)
@@ -153,6 +158,10 @@ class SpriteManager(QObject):
 
     def update_next_sprites(self):
         self.is_updating_sprites = True
+
+    # Preprocess high-res sprites before updating
+        self.preprocess_high_res_sprites()
+
         updates_in_batch = min(
             self.batch_size,
             (len(self.most_similar_indices) - self.current_most_index) + (len(self.least_similar_indices) - self.current_least_index)
@@ -181,7 +190,10 @@ class SpriteManager(QObject):
                 self.current_least_index += 1
                 updates_done += 1
 
+        # Update sprites and emit signals
         self.sprites_updated.emit()
+        self.update_most_similar()  # Trigger update for most similar sprite
+        self.update_least_similar()  # Trigger update for least similar sprite
 
         if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
             QTimer.singleShot(config.update_delay, self.update_next_sprites)
