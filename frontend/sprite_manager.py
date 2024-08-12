@@ -19,7 +19,7 @@ class SpriteManager(QObject):
         self.sprite_arranger_running = False
         self.middle_y_pos = middle_y_pos
         self.square_size = square_size
-        self.batch_size = 80
+        self.batch_size = 50
 
         self.high_res_most_similar_sprites = []
         self.high_res_least_similar_sprites = []

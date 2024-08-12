@@ -6,7 +6,7 @@ import config
 class ImageStore:
     def __init__(self):
         self.preloaded_images = {}
-        self.zoom_factor = 1  # Initial zoom factor, 1.0 means no zoom
+        self.zoom_factor = 1.3  # Initial zoom factor, 1.0 means no zoom
         self.compression_ratios = []  # List to store compression ratios
 
     def preload_images(self, app, base_dir, num_cols=21):
@@ -16,7 +16,6 @@ class ImageStore:
         screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
         largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
         window_width = largest_screen_width // 2 if config.demo else largest_screen_width
-        print(window_width)
         square_size = window_width // config.num_cols
 
         total_images = 0
@@ -71,6 +70,10 @@ class ImageStore:
         return num_images
 
     def resize_to_square(self, image, size):
+        if self.zoom_factor == 1:
+            # If zoom factor is 1, just resize the image to the square size directly
+            return cv2.resize(image, (size, size), interpolation=cv2.INTER_LINEAR)
+
         # Calculate the new size based on the zoom factor
         zoomed_size = int(size * self.zoom_factor)
 

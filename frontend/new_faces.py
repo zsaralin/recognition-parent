@@ -104,6 +104,13 @@ class NewFaces:
             # Find the closest face to the last known face position
             closest_face = self.get_closest_face(mediapipe_result.detections)
             bbox = self.extract_bbox(closest_face)
+
+            if self.curr_bbox is not None:
+                distance = self.calculate_bbox_distance(self.curr_bbox, bbox)
+                if distance > self.position_threshold:
+                    logger.info(f"Significant movement detected. Resetting face due to distance: {distance}")
+                    self.reset_face()
+
             self.curr_bbox = bbox
 
             cropped_face = self.cropped_frame  # Use the cropped frame from VideoProcessor
@@ -144,8 +151,8 @@ class NewFaces:
         if self.awaiting_backend_response:
             return
 
-        if cropped_face is None:
-            logger.error("send_cropped_face_to_server: cropped_face is None")
+        if cropped_face is None or cropped_face.size == 0:
+            logger.error("Cropped face is empty or invalid.")
             return
 
         if not isinstance(cropped_face, np.ndarray):
