@@ -55,10 +55,26 @@ class NewFaces:
         self.cropped_frame = cropped_frame
         logger.info(f"Set cropped frame with shape: {cropped_frame.shape} and type: {type(cropped_frame)}")
 
+    def get_largest_face(self, detected_faces):
+        """Find the detected face with the largest bounding box area."""
+        largest_face = None
+        max_area = 0
+
+        for face in detected_faces:
+            bbox = self.extract_bbox(face)
+            if bbox is not None:
+                print('ddddddddddddddddddddddddd')
+                area = bbox[2] * bbox[3]  # width * height
+                if area > max_area:
+                    max_area = area
+                    largest_face = face
+
+        return largest_face
+
     def get_closest_face(self, detected_faces):
-        """Find the detected face closest to the last known position of the current face."""
+        """Find the detected face closest to the last known position of the current face, or the largest face if no current face."""
         if self.curr_bbox is None:
-            return detected_faces[0]  # Default to the first face if no current face is tracked
+            return self.get_largest_face(detected_faces)  # Default to the largest face if no current face is tracked
 
         min_distance = float('inf')
         closest_face = None
