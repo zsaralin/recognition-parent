@@ -47,6 +47,8 @@ class ImageApp(QWidget):
         self.sprite_manager.most_similar_updated.connect(lambda pixmap: self.most_similar_cell.setPixmap(pixmap))
         self.sprite_manager.least_similar_updated.connect(lambda pixmap: self.least_similar_cell.setPixmap(pixmap))
 
+        self.overlay.font_size_changed.connect(self.video_processor.update_text_overlay)
+        self.overlay.font_size_changed.connect(self.sprite_manager.update_static_overlays)
         # Set positions for cells only once
         self.set_cell_positions()
 

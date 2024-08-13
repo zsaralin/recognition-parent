@@ -63,7 +63,6 @@ class NewFaces:
         for face in detected_faces:
             bbox = self.extract_bbox(face)
             if bbox is not None:
-                print('ddddddddddddddddddddddddd')
                 area = bbox[2] * bbox[3]  # width * height
                 if area > max_area:
                     max_area = area

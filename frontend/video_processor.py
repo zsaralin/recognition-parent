@@ -1,18 +1,3 @@
-import sys
-import math
-import cv2
-import numpy as np
-from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt
-from PyQt5.QtGui import QPixmap, QImage
-from mediapipe_face_detection import MediaPipeFaceDetection
-import config
-from logger_setup import logger
-from text_overlay import add_text_overlay
-import time
-from one_euro import OneEuroFilter
-import asyncio
-from backend_communicator import send_add_frame_request
-
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QPixmap)
     cropped_frame_ready = pyqtSignal(np.ndarray)
@@ -49,22 +34,54 @@ class VideoProcessor(QThread):
         self.euro_filter_h = OneEuroFilter(self.freq, min_cutoff=self.min_cutoff, beta=self.beta)
 
         self.last_cropped_frame = None
+        self.last_cropped_position = None
+        self.no_face_counter = 0
+
+        # Tracking new face detection for saved frame feature
+        self.consistent_detection_counter = 0
+        self.capture_frame_counter = 0
+        self.saved_frame = None
+        self.position_history = []
+        self.max_history_length = 10  # Number of frames to check for stability
+        self.stability_threshold = 5  # Pixels within which movement is considered stable
 
         # Initialize FPS calculation
         self.prev_time = time.time()
         self.fps = 0
 
-        # Create and resize a pre-rendered text overlay
-        self.overlay_image = self.create_text_overlay(self.square_size, self.square_size)
+        # Initialize overlay image
+        self.overlay_image = None
+
+    def is_stable(self):
+        if len(self.position_history) < self.max_history_length:
+            return False
+
+        # Calculate the average position
+        avg_cx = sum(pos[0] for pos in self.position_history) / len(self.position_history)
+        avg_cy = sum(pos[1] for pos in self.position_history) / len(self.position_history)
+
+        # Check if all positions are within the stability threshold
+        for cx, cy in self.position_history:
+            if abs(cx - avg_cx) > self.stability_threshold or abs(cy - avg_cy) > self.stability_threshold:
+                return False
+
+        return True
 
     def create_text_overlay(self, width, height):
-        """Pre-render the text overlay and resize it to the expected frame size."""
+        """Create the text overlay and resize it to the expected frame size."""
         overlay = np.zeros((height, width, 4), dtype=np.uint8)  # Using a 4-channel image for RGBA
         overlay_with_text = add_text_overlay(overlay)
         return overlay_with_text
 
+    def update_text_overlay(self):
+        """Update the overlay image whenever the font size changes."""
+        self.overlay_image = self.create_text_overlay(self.square_size, self.square_size)
+
     def apply_text_overlay(self, frame):
-        """Apply the pre-rendered and resized text overlay onto the frame."""
+        """Apply the current text overlay onto the frame."""
+        if self.overlay_image is None:
+            self.update_text_overlay()
+
         # Simply overlay the pre-rendered and pre-resized image
         alpha_channel = self.overlay_image[:, :, 3] / 255.0  # Extract alpha channel and normalize it to [0, 1]
         for c in range(3):  # For each RGB channel
@@ -77,13 +94,27 @@ class VideoProcessor(QThread):
         try:
             ret, frame = self.cap.read()
             if not ret or frame is None or frame.size == 0:
-                logger.error("No valid frame available.")
+                logger.error("No valid frame available. Retrying...")
                 return
 
             # Flip the frame vertically if not in demo mode
             if not config.demo:
                 frame = cv2.flip(frame, 0)
 
+            # Apply rotation if a rotation angle is set
+            if config.rotation_angle != 0:
+                if config.rotation_angle == 90:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                elif config.rotation_angle == 180:
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                elif config.rotation_angle == 270:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            # Mirror the frame horizontally if the mirror option is enabled
+            if config.mirror:
+                frame = cv2.flip(frame, 1)
+
+            # Detect faces in the frame
             original_frame = frame.copy()
             frame, bbox = self.face_detector.detect_faces(frame, self.callback)
 
@@ -108,16 +139,39 @@ class VideoProcessor(QThread):
 
                 self.last_cropped_position = (filtered_cx, filtered_cy, filtered_w, filtered_h)
                 self.no_face_counter = 0
+
+                # Update position history
+                self.position_history.append((filtered_cx, filtered_cy))
+                if len(self.position_history) > self.max_history_length:
+                    self.position_history.pop(0)
+
+                # Update consistent detection counter and handle saved frame logic
+                if self.consistent_detection_counter < 30:
+                    self.consistent_detection_counter += 1
+                elif self.consistent_detection_counter == 30 and self.is_stable():
+                    # Capture the saved frame after 30 consistent detections and stability
+                    self.saved_frame = original_frame.copy()
+                    logger.info("Saved frame captured (stable).")
+                    self.consistent_detection_counter += 1  # Prevent further saving
+
             else:
                 self.no_face_counter += 1
+                self.consistent_detection_counter = 0  # Reset if no face is detected
+                self.position_history.clear()  # Clear position history when no face is detected
+                if self.no_face_counter > 50:  # No face detected for a while, reset last known position
+                    logger.warning("No face detected for a while.")
+                    if self.saved_frame is not None and config.show_saved_frame:
+                        frame = self.saved_frame
+                    else:
+                        logger.info("No saved frame available or not showing saved frame. Continuing with normal processing.")
 
             if self.last_cropped_position:
                 filtered_cx, filtered_cy, filtered_w, filtered_h = self.last_cropped_position
             else:
                 h, w = original_frame.shape[:2]
-                filtered_cx, filtered_cy, filtered_w, filtered_h = w // 2, h // 2, w, h
+                filtered_cx, filtered_cy, filtered_w, filtered_h = w // 2, h // 2, w, h  # This case should rarely be reached now
 
-            cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
+            cropped_frame = self.extract_frame(frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
 
             if cropped_frame is None or cropped_frame.size == 0:
                 logger.error(f"Cropped frame is empty. filtered_w: {filtered_w}, filtered_h: {filtered_h}, filtered_cx: {filtered_cx}, filtered_cy: {filtered_cy}")
@@ -131,7 +185,7 @@ class VideoProcessor(QThread):
             if bbox and config.create_sprites:
                 send_add_frame_request(resized_frame, (x, y, w, h))
 
-            self.apply_text_overlay(resized_frame)  # Apply the pre-rendered overlay
+            self.apply_text_overlay(resized_frame)  # Apply the current overlay
             self.display_fps(resized_frame)
             pixmap = self.convert_to_qpixmap(resized_frame)
 
@@ -147,11 +201,12 @@ class VideoProcessor(QThread):
         frame_height, frame_width = frame.shape[:2]
 
         size = max(w, h)
-
         x1 = max(0, cx - size // 2)
         y1 = max(0, cy - size // 2)
         x2 = min(frame_width, x1 + size)
         y2 = min(frame_height, y1 + size)
+
+        logger.info(f"Extracting frame: size={size}, x1={x1}, y1={y1}, x2={x2}, y2={y2}, frame_width={frame_width}, frame_height={frame_height}")
 
         if x2 - x1 < size:
             x1 = max(0, x2 - size)
@@ -162,11 +217,18 @@ class VideoProcessor(QThread):
         x2 = x1 + crop_size
         y2 = y1 + crop_size
 
+        if crop_size <= 0:
+            logger.error(f"Invalid crop size: {crop_size}. Frame extraction failed.")
+            return None
+
         cropped_frame = frame[y1:y2, x1:x2]
         logger.info(f"Extracted frame of size {cropped_frame.shape}")
-        return cropped_frame
+        return cropped_frame if cropped_frame.size > 0 else None
 
     def resize_to_square(self, frame, size):
+        if frame is None or frame.size == 0:
+            logger.error("Cannot resize an empty frame.")
+            return None
         return cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR)
 
     def convert_to_qpixmap(self, frame):
@@ -195,6 +257,7 @@ class VideoProcessor(QThread):
 
     def update_config(self):
         self.bbox_multiplier = config.bbox_multiplier
+        self.update_text_overlay()  # Ensure the text overlay is updated when config changes
 
     def set_exposure(self, exposure_value):
         if self.cap.isOpened():

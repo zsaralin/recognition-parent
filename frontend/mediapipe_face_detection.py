@@ -15,12 +15,19 @@ class MediaPipeFaceDetection:
         self.new_faces = new_faces  # Create an instance of NewFaces
 
     def detect_faces(self, frame, callback):
+        # Check if the frame is valid before any processing
+        if frame is None or frame.size == 0:
+            logger.error("Received an invalid or empty frame. Skipping face detection.")
+            return frame, None
+
         results = self.face_detection.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         closest_face = None
         min_distance = float('inf')
+        best_confidence = 0.0  # To track the highest confidence score
 
         if results.detections:
             for detection in results.detections:
+                confidence = detection.score[0]  # Extract the confidence score
                 bboxC = detection.location_data.relative_bounding_box
                 h, w, c = frame.shape
                 bbox = int(bboxC.xmin * w), int(bboxC.ymin * h), int(bboxC.width * w), int(bboxC.height * h)
@@ -34,6 +41,7 @@ class MediaPipeFaceDetection:
                 if self.current_face_bbox is None and distance < min_distance:
                     min_distance = distance
                     closest_face = bbox
+                    best_confidence = confidence
 
                 # Stick to the current face if it is still detected
                 if self.current_face_bbox is not None:
@@ -41,10 +49,14 @@ class MediaPipeFaceDetection:
                     current_cy = self.current_face_bbox[1] + self.current_face_bbox[3] // 2
                     if abs(face_center_x - current_cx) < config.jump_threshold and abs(face_center_y - current_cy) < config.jump_threshold:
                         closest_face = bbox
+                        best_confidence = confidence
                         break
 
-            # Update the current face's bounding box
-            if closest_face is not None:
+            # Log the confidence score of the detected face
+            logger.info(f"Face detected with confidence: {best_confidence:.2f}")
+
+            # Update the current face's bounding box if the face is confident enough
+            if closest_face is not None and best_confidence >= config.min_detection_confidence:
                 if closest_face[2] < config.min_face_size or closest_face[3] < config.min_face_size or not self.is_face_facing_forward(frame, closest_face):
                     results = None  # Face is too small or not facing forward
                 else:
@@ -56,7 +68,7 @@ class MediaPipeFaceDetection:
                     self.previous_cx = closest_face[0] + closest_face[2] // 2
                     self.previous_cy = closest_face[1] + closest_face[3] // 2
             else:
-                self.current_face_bbox = None  # No valid face detected
+                self.current_face_bbox = None  # No valid face detected or confidence too low
         else:
             self.current_face_bbox = None  # No face detected at all
 
@@ -64,7 +76,7 @@ class MediaPipeFaceDetection:
         if self.current_face_bbox:
             x, y, w, h = self.current_face_bbox
             cropped_frame = frame[y:y+h, x:x+w]
-            if cropped_frame.size == 0:
+            if cropped_frame is None or cropped_frame.size == 0:
                 logger.error("Cropped frame in detect_faces is empty.")
             else:
                 logger.info(f"Cropped frame in detect_faces with shape: {cropped_frame.shape}")
@@ -74,6 +86,7 @@ class MediaPipeFaceDetection:
         self.new_faces.set_curr_face(results, frame, callback)
 
         return frame, self.current_face_bbox
+
 
     def is_face_facing_forward(self, frame, bbox):
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
