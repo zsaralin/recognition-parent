@@ -247,3 +247,6 @@ class SpriteManager(QObject):
                         sprite = sprite.copy(crop_x, crop_y, original_size.width(), original_size.height())
                 return sprite
         return None
+
+    def clear_preloaded_images(self):
+        self.sprite_arranger.clear_preloaded_images()

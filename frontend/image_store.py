@@ -144,5 +144,9 @@ class ImageStore:
         window_width = largest_screen_width // 2 if config.demo else largest_screen_width
         return window_width // config.num_cols
 
+    def clear_preloaded_images(self):
+        """Clear all preloaded images from memory."""
+        self.preloaded_images.clear()
+        print("Preloaded images cleared from memory.")
 # Create a global instance
 image_store = ImageStore()

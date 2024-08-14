@@ -108,3 +108,6 @@ class SpriteArranger(QObject):
 
         indices_list.append(grid_index)
         return True
+
+    def clear_preloaded_images(self):
+        image_store.clear_preloaded_images()
