@@ -15,10 +15,9 @@ class MediaPipeFaceDetection:
         self.new_faces = new_faces  # Create an instance of NewFaces
 
     def detect_faces(self, frame, callback):
-        # Check if the frame is valid before any processing
         if frame is None or frame.size == 0:
             logger.error("Received an invalid or empty frame. Skipping face detection.")
-            return frame, None
+            return
 
         results = self.face_detection.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         closest_face = None
@@ -39,9 +38,10 @@ class MediaPipeFaceDetection:
 
                 # Find the closest face to the camera initially
                 if self.current_face_bbox is None and distance < min_distance:
+                    best_confidence = confidence
+
                     min_distance = distance
                     closest_face = bbox
-                    best_confidence = confidence
 
                 # Stick to the current face if it is still detected
                 if self.current_face_bbox is not None:
@@ -52,11 +52,8 @@ class MediaPipeFaceDetection:
                         best_confidence = confidence
                         break
 
-            # Log the confidence score of the detected face
-            logger.info(f"Face detected with confidence: {best_confidence:.2f}")
-
-            # Update the current face's bounding box if the face is confident enough
-            if closest_face is not None and best_confidence >= config.min_detection_confidence:
+            # Update the current face's bounding box
+            if closest_face is not None:
                 if closest_face[2] < config.min_face_size or closest_face[3] < config.min_face_size or not self.is_face_facing_forward(frame, closest_face):
                     results = None  # Face is too small or not facing forward
                 else:
@@ -68,7 +65,7 @@ class MediaPipeFaceDetection:
                     self.previous_cx = closest_face[0] + closest_face[2] // 2
                     self.previous_cy = closest_face[1] + closest_face[3] // 2
             else:
-                self.current_face_bbox = None  # No valid face detected or confidence too low
+                self.current_face_bbox = None  # No valid face detected
         else:
             self.current_face_bbox = None  # No face detected at all
 
@@ -86,7 +83,6 @@ class MediaPipeFaceDetection:
         self.new_faces.set_curr_face(results, frame, callback)
 
         return frame, self.current_face_bbox
-
 
     def is_face_facing_forward(self, frame, bbox):
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

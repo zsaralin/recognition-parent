@@ -26,6 +26,8 @@ class NewFaces:
         self.executor = ThreadPoolExecutor(max_workers=5)
         self.cropped_frame = None
         self.position_threshold = 50  # Pixel distance threshold for switching faces
+        self.marked_for_reset = False  # Flag to mark if the next detection should be treated as a new face
+        self.low_confidence_counter = 0  # Counter to ensure we wait for 30 detections before allowing another reset
 
         if config.auto_update:
             self.start_periodic_reset()
@@ -37,6 +39,7 @@ class NewFaces:
         self.frames_sent = False
         self.frame_buffer = []
         self.bbox_buffer = []
+        self.marked_for_reset = False  # Reset the marker when the face is reset
         logger.info("Face reset. curr_face set to None.")
 
     def periodic_reset(self):
@@ -119,6 +122,20 @@ class NewFaces:
             # Find the closest face to the last known face position
             closest_face = self.get_closest_face(mediapipe_result.detections)
             bbox = self.extract_bbox(closest_face)
+
+            # Check the confidence score of the detected face
+            confidence_score = closest_face.score[0]  # Assuming score is a list with one element
+            if confidence_score < 0.7:
+                if self.low_confidence_counter >= 10:  # Only allow marking for reset after 30 detections
+                    print(f"Face detection confidence ({confidence_score}) is below the threshold. Marking for reset on next detection.")
+                    self.marked_for_reset = True
+                    self.low_confidence_counter = 0  # Reset the counter after marking
+                else:
+                    self.low_confidence_counter += 1  # Increment the counter if not marked for reset
+
+            if self.marked_for_reset:
+                logger.info("Resetting face due to previous low confidence. Treating as a new face.")
+                self.reset_face()
 
             if self.curr_bbox is not None:
                 distance = self.calculate_bbox_distance(self.curr_bbox, bbox)

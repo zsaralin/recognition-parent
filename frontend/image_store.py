@@ -107,5 +107,42 @@ class ImageStore:
     def get_sub_images(self, image_path):
         return self.preloaded_images.get(image_path, [])
 
+    def add_image(self, image_path):
+        image_path = os.path.join("..", "databases" , "database0", image_path)
+
+        print(f"Trying to add image from path: {image_path}")
+
+        # Verify that the image path is correct
+        if not os.path.exists(image_path):
+            print(f"Image path does not exist: {image_path}")
+            return False
+
+        # Load the image using OpenCV
+        image = cv2.imread(image_path)
+        if image is None:
+            print(f"Failed to load image from path: {image_path}")
+            return False
+
+        # Determine the number of sub-images based on your logic
+        num_images = self.get_num_images_from_filename(os.path.basename(image_path))
+
+        # Process the image as you do in preload_images
+        square_size = self.calculate_square_size()  # Assuming you move the square size logic into a method
+        sub_images = self.split_into_sub_images(image, 100, 100, num_images)
+        sub_images_with_reversed = sub_images + sub_images[::-1]
+        pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
+
+        # Store the processed images in the dictionary
+        self.preloaded_images[image_path] = pixmap_images
+        print(f"Added new image to preloaded images: {image_path}")
+        return True
+
+    def calculate_square_size(self):
+        app = QGuiApplication.instance()
+        screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
+        largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
+        window_width = largest_screen_width // 2 if config.demo else largest_screen_width
+        return window_width // config.num_cols
+
 # Create a global instance
 image_store = ImageStore()

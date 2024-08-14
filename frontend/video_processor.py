@@ -1,3 +1,18 @@
+import sys
+import math
+import cv2
+import numpy as np
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt
+from PyQt5.QtGui import QPixmap, QImage
+from mediapipe_face_detection import MediaPipeFaceDetection
+import config
+from logger_setup import logger
+from text_overlay import add_text_overlay
+import time
+from one_euro import OneEuroFilter
+import asyncio
+from backend_communicator import send_add_frame_request
+
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QPixmap)
     cropped_frame_ready = pyqtSignal(np.ndarray)
@@ -151,7 +166,6 @@ class VideoProcessor(QThread):
                 elif self.consistent_detection_counter == 30 and self.is_stable():
                     # Capture the saved frame after 30 consistent detections and stability
                     self.saved_frame = original_frame.copy()
-                    logger.info("Saved frame captured (stable).")
                     self.consistent_detection_counter += 1  # Prevent further saving
 
             else:
@@ -159,7 +173,6 @@ class VideoProcessor(QThread):
                 self.consistent_detection_counter = 0  # Reset if no face is detected
                 self.position_history.clear()  # Clear position history when no face is detected
                 if self.no_face_counter > 50:  # No face detected for a while, reset last known position
-                    logger.warning("No face detected for a while.")
                     if self.saved_frame is not None and config.show_saved_frame:
                         frame = self.saved_frame
                     else:
@@ -172,11 +185,6 @@ class VideoProcessor(QThread):
                 filtered_cx, filtered_cy, filtered_w, filtered_h = w // 2, h // 2, w, h  # This case should rarely be reached now
 
             cropped_frame = self.extract_frame(frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
-
-            if cropped_frame is None or cropped_frame.size == 0:
-                logger.error(f"Cropped frame is empty. filtered_w: {filtered_w}, filtered_h: {filtered_h}, filtered_cx: {filtered_cx}, filtered_cy: {filtered_cy}")
-            else:
-                logger.info(f"Cropped frame extracted successfully. Shape: {cropped_frame.shape}")
 
             resized_frame = self.resize_to_square(cropped_frame, self.square_size)
 
@@ -206,8 +214,6 @@ class VideoProcessor(QThread):
         x2 = min(frame_width, x1 + size)
         y2 = min(frame_height, y1 + size)
 
-        logger.info(f"Extracting frame: size={size}, x1={x1}, y1={y1}, x2={x2}, y2={y2}, frame_width={frame_width}, frame_height={frame_height}")
-
         if x2 - x1 < size:
             x1 = max(0, x2 - size)
         if y2 - y1 < size:
@@ -222,7 +228,6 @@ class VideoProcessor(QThread):
             return None
 
         cropped_frame = frame[y1:y2, x1:x2]
-        logger.info(f"Extracted frame of size {cropped_frame.shape}")
         return cropped_frame if cropped_frame.size > 0 else None
 
     def resize_to_square(self, frame, size):
@@ -245,15 +250,12 @@ class VideoProcessor(QThread):
             cv2.putText(frame, f'FPS: {int(self.fps)}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 
     def stop(self):
-        print("VideoProcessor: Stopping")
         self.stopped = True
         self.timer.stop()
         if self.isRunning():
-            print("VideoProcessor: Force terminating")
             self.terminate()
 
         self.cap.release()
-        print("VideoProcessor: Stopped")
 
     def update_config(self):
         self.bbox_multiplier = config.bbox_multiplier

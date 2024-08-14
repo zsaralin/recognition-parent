@@ -5,9 +5,19 @@ const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
 const DriveCapacity = require('./driveCapacity');
 
 const checkDriveCapacity = false; // Set this to false to disable the drive capacity check
+let lastSpritesheetCreationTime = 0;
+const MIN_TIME_BETWEEN_SPRITESHEETS = 2 * 60 * 1000; // 2 minutes in milliseconds
 
 async function createSpritesheet(frames) {
     try {
+        const currentTime = Date.now();
+
+        // Check if the last spritesheet creation was less than 2 minutes ago
+        if (currentTime - lastSpritesheetCreationTime < MIN_TIME_BETWEEN_SPRITESHEETS) {
+            console.log('Spritesheet creation skipped: must wait 2 minutes between creations.');
+            return null;
+        }
+
         if (checkDriveCapacity) {
             const localRecordingsFolder = resolve(__dirname, '../databases/database0'); // Use forward slashes for Unix-like systems
             const limit = 80; // Set your limit for the disk usage percentage
@@ -77,6 +87,8 @@ async function createSpritesheet(frames) {
         const filePath = await saveSpritesheet(spritesheet, frames.length);
         if (filePath) {
             console.log('Spritesheet saved successfully');
+            // Update the last creation time after a successful save
+            lastSpritesheetCreationTime = Date.now();
         } else {
             console.log('Failed to save spritesheet');
         }
