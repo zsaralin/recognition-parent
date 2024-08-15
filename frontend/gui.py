@@ -364,8 +364,17 @@ class SliderOverlay(QWidget):
             self.min_face_size_slider.setValue(int(value))
         elif sender == self.cell_zoom_factor_input:
             self.cell_zoom_factor_slider.setValue(int(value * 10))
-        elif sender == self.rotation_angle_input:
-            self.rotation_angle_slider.setValue(int(value))
+        elif sender == self.rotation_angle_slider:
+            value = sender.value()
+            snapped_value = round(value / 90) * 90
+            if value != snapped_value:
+                sender.blockSignals(True)
+                sender.setValue(snapped_value)
+                sender.blockSignals(False)
+            # Explicitly check and handle 0
+            if snapped_value == 0:
+                snapped_value = 0
+            self.rotation_angle_input.setText(str(snapped_value))
         self.config_changed.emit()
 
     def toggle_fps_display(self, state):
@@ -419,6 +428,7 @@ class SliderOverlay(QWidget):
             config_file.write(f"zoom_factor = {config.zoom_factor}\n")
             config_file.write(f"mirror = {config.mirror}\n")
             config_file.write(f"demo = {config.demo}\n")  # Write the demo config value
+            config_file.write(f"auto_exposure= {config.auto_exposure}\n")
 
         # Emit signal to update the config
         self.config_changed.emit()

@@ -8,8 +8,9 @@ class ImageStore:
         self.preloaded_images = {}
         self.zoom_factor = 1.3  # Initial zoom factor, 1.0 means no zoom
         self.compression_ratios = []  # List to store compression ratios
-
+        self.base_dir = None
     def preload_images(self, app, base_dir, num_cols=21):
+        self.base_dir = base_dir
         logger.info('Starting preload images')
 
         # Calculate square_size based on screen dimensions and number of columns
@@ -108,8 +109,12 @@ class ImageStore:
     def get_sub_images(self, image_path):
         return self.preloaded_images.get(image_path, [])
 
-    def add_image(self, image_path):
-        image_path = os.path.join("..", "databases" , "database0", image_path)
+    def add_image(self, subfolder_name, image_filename):
+        if not self.base_dir:
+            raise ValueError("Base directory not set. Please call set_base_dir() before add_image().")
+
+        base_dir = os.path.join(self.base_dir, subfolder_name)
+        image_path = os.path.join(base_dir, image_filename)
 
         print(f"Trying to add image from path: {image_path}")
 
@@ -125,7 +130,7 @@ class ImageStore:
             return False
 
         # Determine the number of sub-images based on your logic
-        num_images = self.get_num_images_from_filename(os.path.basename(image_path))
+        num_images = self.get_num_images_from_filename(image_filename)
 
         # Process the image as you do in preload_images
         square_size = self.calculate_square_size()  # Assuming you move the square size logic into a method
@@ -134,8 +139,8 @@ class ImageStore:
         pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
 
         # Store the processed images in the dictionary
-        self.preloaded_images[image_path] = pixmap_images
-        print(f"Added new image to preloaded images: {image_path}")
+        self.preloaded_images[subfolder_name] = pixmap_images
+        print(f"Added new image to preloaded images under subfolder: {subfolder_name}")
         return True
 
     def calculate_square_size(self):
