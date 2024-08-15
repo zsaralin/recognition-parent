@@ -1,7 +1,7 @@
 gif_delay = 60
 num_cols = 21
 middle_y_pos = -5
-update_count = 50
+update_count = 80
 update_delay = 0
 update_int = 5
 bbox_multiplier = 1.5
@@ -18,3 +18,4 @@ min_face_size = 0
 zoom_factor = 1.0
 mirror = False
 demo = True
+auto_exposure = False

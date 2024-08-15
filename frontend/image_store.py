@@ -1,4 +1,6 @@
 import os
+import sys
+
 import cv2
 from PyQt5.QtGui import QImage, QPixmap, QGuiApplication
 from logger_setup import logger
@@ -9,9 +11,11 @@ class ImageStore:
         self.preloaded_images = {}
         self.zoom_factor = 1.3  # Initial zoom factor, 1.0 means no zoom
         self.compression_ratios = []  # List to store compression ratios
+        self.base_dir = None  # Add an attribute to store the base directory
 
     def preload_images(self, app, base_dir, num_cols=21):
         logger.info('Starting preload images')
+        self.base_dir = base_dir
 
         # Calculate square_size based on screen dimensions and number of columns
         screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
@@ -112,7 +116,10 @@ class ImageStore:
         return self.preloaded_images.get(subfolder_name, [])
 
     def add_image(self, subfolder_name, image_filename):
-        base_dir = os.path.join("..", "databases", "database0", subfolder_name)
+        if not self.base_dir:
+            raise ValueError("Base directory not set. Please call set_base_dir() before add_image().")
+
+        base_dir = os.path.join(self.base_dir, subfolder_name)
         image_path = os.path.join(base_dir, image_filename)
 
         print(f"Trying to add image from path: {image_path}")

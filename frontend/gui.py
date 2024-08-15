@@ -323,6 +323,9 @@ class SliderOverlay(QWidget):
                 sender.blockSignals(True)
                 sender.setValue(snapped_value)
                 sender.blockSignals(False)
+            # Explicitly check and handle 0
+            if snapped_value == 0:
+                snapped_value = 0
             self.rotation_angle_input.setText(str(snapped_value))
         self.config_changed.emit()
 
@@ -419,6 +422,7 @@ class SliderOverlay(QWidget):
             config_file.write(f"zoom_factor = {config.zoom_factor}\n")
             config_file.write(f"mirror = {config.mirror}\n")
             config_file.write(f"demo = {config.demo}\n")  # Write the demo config value
+            config_file.write(f"auto_exposure = {config.auto_exposure}\n")
 
         # Emit signal to update the config
         self.config_changed.emit()
