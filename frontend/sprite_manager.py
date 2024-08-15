@@ -23,6 +23,7 @@ class SpriteManager(QObject):
         self.high_res_most_similar_sprites = []
         self.high_res_least_similar_sprites = []
 
+        self.is_updating_sprites = False
         self.current_most_index = 0
         self.current_least_index = 0
         self.most_similar_indices = []
@@ -128,6 +129,9 @@ class SpriteManager(QObject):
         return QPixmap.fromImage(QImage(overlay_image.data, overlay_image.shape[1], overlay_image.shape[0], QImage.Format_RGBA8888))
 
     def update_sprites(self):
+        if self.is_updating_sprites:
+            return
+
         for index in range(len(self.sprites) - 3):  # Exclude special labels
             if self.sprites[index]:
                 self.sprite_indices[index] = (self.sprite_indices[index] + 1) % len(self.sprites[index])
@@ -138,6 +142,7 @@ class SpriteManager(QObject):
             QTimer.singleShot(config.update_delay, self.update_next_sprites)
         else:
             logger.info("All sprites have been batch loaded into the grid.")
+            self.is_updating_sprites = False
 
     def update_most_similar(self):
         if self.high_res_most_similar_sprites:
@@ -177,7 +182,9 @@ class SpriteManager(QObject):
         return sprite
 
     def update_next_sprites(self):
+        self.is_updating_sprites = True
 
+        # Preprocess high-res sprites before updating
         self.preprocess_high_res_sprites()
 
         updates_in_batch = min(
@@ -207,26 +214,18 @@ class SpriteManager(QObject):
                         self.sprites[grid_index] = sprites
                 self.current_least_index += 1
                 updates_done += 1
+        if updates_done > 0:
 
-        # Update sprites and emit signals only after all are preloaded
-        if self.are_all_sprites_loaded():
+            # Update sprites and emit signals
             self.sprites_updated.emit()
             self.update_most_similar()  # Trigger update for most similar sprite
             self.update_least_similar()  # Trigger update for least similar sprite
-        else:
-            print("Waiting for all sprites to load before updating.")
 
         if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
             QTimer.singleShot(config.update_delay, self.update_next_sprites)
         else:
             logger.info("All sprites have been batch loaded into the grid.")
-
-    def are_all_sprites_loaded(self):
-        """Check if all sprites are loaded and ready."""
-        for sprite_list in self.sprites:
-            if not sprite_list:  # If any sprite list is empty, not all sprites are loaded
-                return False
-        return True
+            self.is_updating_sprites = False
 
     def get_sprite(self, index):
         if 0 <= index < len(self.sprites):
