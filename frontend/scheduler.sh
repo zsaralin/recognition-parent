@@ -15,24 +15,7 @@ crontab -r
 #     mm hh * * *
 
 # edit this line to match the shutdown time above in line 4
-echo "00 21 * * * /Users/admin/Desktop/quit_voice_array.sh" >> mycron
-
-# these lines shutdown the voice array app and restart it one minute later
-echo "00 11 * * * /Users/admin/Desktop/quit_voice_array.sh" >> mycron
-echo "01 11 * * * /Users/admin/Desktop/focus_voice_array.sh" >> mycron
-echo "00 14 * * * /Users/admin/Desktop/quit_voice_array.sh" >> mycron
-echo "01 14 * * * /Users/admin/Desktop/focus_voice_array.sh" >> mycron
-echo "00 17 * * * /Users/admin/Desktop/quit_voice_array.sh" >> mycron
-echo "01 17 * * * /Users/admin/Desktop/focus_voice_array.sh" >> mycron
-echo "40 19 * * * /Users/admin/Desktop/quit_voice_array.sh" >> mycron
-echo "41 19 * * * /Users/admin/Desktop/focus_voice_array.sh" >> mycron
-
-# this line ensures that the voice array application is on top, it runs every hour at 5, 20, and 35 minutes past
-echo "05 * * * * /Users/admin/Desktop/focus_voice_array.sh" >> mycron
-echo "20 * * * * /Users/admin/Desktop/focus_voice_array.sh" >> mycron
-echo "35 * * * * /Users/admin/Desktop/focus_voice_array.sh" >> mycron
-
-
+echo "@reboot sh /Users/admin/desktop/recognition-2024-1/frontend/startRecognition.sh" >> mycron
 
 # install new cron file
 crontab mycron

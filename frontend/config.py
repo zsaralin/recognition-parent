@@ -18,4 +18,3 @@ min_face_size = 0
 zoom_factor = 1.0
 mirror = False
 demo = True
-auto_exposure = False

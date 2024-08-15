@@ -9,10 +9,12 @@ import os
 
 async def main():
     # Step 1: Preload images
-    if config.demo:
-        base_dir = "..\\databases\\database0"
-    else:
-        base_dir = "../databases/database0"
+
+    # Determine the script's directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Construct the base directory path relative to the script's directory
+    base_dir = os.path.join(script_dir, "..", "databases", "database0")
 
     app = QApplication(sys.argv)
     await asyncio.get_event_loop().run_in_executor(None, image_store.preload_images, app, base_dir)

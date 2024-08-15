@@ -40,7 +40,6 @@ class ImageStore:
                         sub_images_with_reversed = sub_images + sub_images[::-1]
                         pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
                         self.preloaded_images[parent_dir] = pixmap_images
-                        print(parent_dir)
                         preloaded_count += 1
                         print(f"Preloaded image in subfolder: {subfolder_name} ({preloaded_count}/{total_images})")
                     else:
