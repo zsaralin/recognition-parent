@@ -129,8 +129,8 @@ class SpriteManager(QObject):
         return QPixmap.fromImage(QImage(overlay_image.data, overlay_image.shape[1], overlay_image.shape[0], QImage.Format_RGBA8888))
 
     def update_sprites(self):
-        if self.is_updating_sprites:
-            return
+        # if self.is_updating_sprites:
+        #     return
 
         for index in range(len(self.sprites) - 3):  # Exclude special labels
             if self.sprites[index]:
