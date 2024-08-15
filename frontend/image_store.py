@@ -26,6 +26,7 @@ class ImageStore:
             total_images += len([file for file in files if file.endswith(('.png', '.jpg', '.jpeg'))])
 
         for root, _, files in os.walk(base_dir):
+            parent_dir = os.path.basename(os.path.dirname(root))
             for file in files:
                 if file.endswith(('.png', '.jpg', '.jpeg')):  # Adjust based on your image formats
                     image_path = os.path.join(root, file)
@@ -35,9 +36,9 @@ class ImageStore:
                         sub_images = self.split_into_sub_images(image, 100, 100, num_images)
                         sub_images_with_reversed = sub_images + sub_images[::-1]
                         pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
-                        self.preloaded_images[image_path] = pixmap_images
+                        self.preloaded_images[parent_dir] = pixmap_images
                         preloaded_count += 1
-                        print(f"Preloaded image: {image_path} ({preloaded_count}/{total_images})")
+                        print(f"Preloaded image: {parent_dir} ({preloaded_count}/{total_images})")
                     else:
                         logger.error(f"Failed to load image from path: {image_path}")
 
