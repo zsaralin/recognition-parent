@@ -22,7 +22,7 @@ async function findSimilarImages(descriptor, numVids) {
                         .map(file => {
                             const numImages = parseInt(file.split('.')[0], 10);
                             return {
-                                subfolder: entry.name, // Use subfolder name instead of full path
+                                path: path.join('..', 'databases', 'database0', entry.name, 'spritesheet', file),
                                 numImages: numImages,
                                 distance: distance,
                             };

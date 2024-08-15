@@ -43,9 +43,9 @@ class ImageStore:
                         sub_images = self.split_into_sub_images(image, 100, 100, num_images)
                         sub_images_with_reversed = sub_images + sub_images[::-1]
                         pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
-                        self.preloaded_images[parent_dir] = pixmap_images
+                        self.preloaded_images[image_path] = pixmap_images
                         preloaded_count += 1
-                        print(f"Preloaded image in subfolder: {subfolder_name} ({preloaded_count}/{total_images})")
+                        print(f"Preloaded image: {image_path} ({preloaded_count}/{total_images})")
                     else:
                         logger.error(f"Failed to load image from path: {image_path}")
 

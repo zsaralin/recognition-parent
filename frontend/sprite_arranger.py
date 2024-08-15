@@ -95,7 +95,7 @@ class SpriteArranger(QObject):
         self.is_arranging = False  # Reset the flag after arrangement is completed
 
     def arrange_sprite(self, sprite_info, grid_index, sprites, indices_list):
-        image_path = sprite_info['subfolder']
+        image_path = sprite_info['path']
         sub_images = image_store.get_sub_images(image_path)
         if not sub_images:
             print(f"Error: Preloaded sub-images for path {image_path} are None or empty")
