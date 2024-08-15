@@ -214,12 +214,11 @@ class SpriteManager(QObject):
                         self.sprites[grid_index] = sprites
                 self.current_least_index += 1
                 updates_done += 1
-        if updates_done > 0:
 
-            # Update sprites and emit signals
-            self.sprites_updated.emit()
-            self.update_most_similar()  # Trigger update for most similar sprite
-            self.update_least_similar()  # Trigger update for least similar sprite
+        # Update sprites and emit signals
+        self.sprites_updated.emit()
+        self.update_most_similar()  # Trigger update for most similar sprite
+        self.update_least_similar()  # Trigger update for least similar sprite
 
         if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
             QTimer.singleShot(config.update_delay, self.update_next_sprites)
