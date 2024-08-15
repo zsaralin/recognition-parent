@@ -1,10 +1,12 @@
-
 from setuptools import setup
 
 APP = ['main.py']
 OPTIONS = {
     'argv_emulation': True,
-    'packages': [],  # List any additional packages your script requires
+    'packages': ['PyQt5', 'cv2', 'requests', 'mediapipe', 'httpx'],
+    'plist': {
+        'NSCameraUsageDescription': 'This app requires access to the camera.'
+    },
 }
 
 setup(
@@ -13,5 +15,7 @@ setup(
     setup_requires=['py2app'],
 )
 
-# pip install py2app
-# python setup.py py2app
+
+# add to info.plist :
+# <key>NSCameraUsageDescription</key>
+# <string>This app requires access to the camera.</string>

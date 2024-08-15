@@ -6,7 +6,7 @@ import config
 class ImageStore:
     def __init__(self):
         self.preloaded_images = {}
-        self.zoom_factor = 1.3  # Initial zoom factor, 1.0 means no zoom
+        self.zoom_factor = 1  # Initial zoom factor, 1.0 means no zoom
         self.compression_ratios = []  # List to store compression ratios
         self.base_dir = None
     def preload_images(self, app, base_dir, num_cols=21):
