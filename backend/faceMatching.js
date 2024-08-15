@@ -1,11 +1,9 @@
 const path = require('path');
 const fs = require('fs').promises;
 
-
 async function findSimilarImages(descriptor, numVids) {
     const baseDir = path.resolve('../databases/database0'); // Use absolute path for reliability
     const entries = await fs.readdir(baseDir, { withFileTypes: true });
-    console.log(`Number of entries in ${baseDir}: ${entries.length}`); // Log the number of entries
 
     let images = [];
     const promises = entries.map(async (entry) => {
@@ -24,7 +22,7 @@ async function findSimilarImages(descriptor, numVids) {
                         .map(file => {
                             const numImages = parseInt(file.split('.')[0], 10);
                             return {
-                                path: path.join('..', 'databases', 'database0', entry.name, 'spritesheet', file),
+                                subfolder: entry.name, // Use subfolder name instead of full path
                                 numImages: numImages,
                                 distance: distance,
                             };
@@ -49,8 +47,6 @@ async function findSimilarImages(descriptor, numVids) {
 
     // Select the top `numVids` least similar images
     const leastSimilar = images.slice(-numVids).reverse();
-
-    console.log(mostSimilar[0]);
     return { mostSimilar, leastSimilar };
 }
 

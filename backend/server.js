@@ -33,8 +33,6 @@ app.post('/grid-info', (req, res) => {
 app.post('/get-matches', async (req, res) => {
     try {
         const { image, numVids } = req.body;
-        console.log(numVids);
-
         if (!numVids) {
             return res.status(400).json({ error: 'Number of videos in grid not provided' });
         }
@@ -49,6 +47,7 @@ app.post('/get-matches', async (req, res) => {
         }
 
         const { mostSimilar, leastSimilar } = await findSimilarImages(descriptor, numVids, path.join('database'));
+        console.log(mostSimilar)
         res.json({ mostSimilar, leastSimilar });
     } catch (error) {
         console.error('Unexpected error processing image:', error);

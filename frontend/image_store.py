@@ -3,6 +3,7 @@ import cv2
 from PyQt5.QtGui import QImage, QPixmap, QGuiApplication
 from logger_setup import logger
 import config
+
 class ImageStore:
     def __init__(self):
         self.preloaded_images = {}
@@ -26,6 +27,9 @@ class ImageStore:
             total_images += len([file for file in files if file.endswith(('.png', '.jpg', '.jpeg'))])
 
         for root, _, files in os.walk(base_dir):
+            parent_dir = os.path.basename(os.path.dirname(root))
+
+            subfolder_name = os.path.basename(root)
             for file in files:
                 if file.endswith(('.png', '.jpg', '.jpeg')):  # Adjust based on your image formats
                     image_path = os.path.join(root, file)
@@ -35,9 +39,10 @@ class ImageStore:
                         sub_images = self.split_into_sub_images(image, 100, 100, num_images)
                         sub_images_with_reversed = sub_images + sub_images[::-1]
                         pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
-                        self.preloaded_images[image_path] = pixmap_images
+                        self.preloaded_images[parent_dir] = pixmap_images
+                        print(parent_dir)
                         preloaded_count += 1
-                        print(f"Preloaded image: {image_path} ({preloaded_count}/{total_images})")
+                        print(f"Preloaded image in subfolder: {subfolder_name} ({preloaded_count}/{total_images})")
                     else:
                         logger.error(f"Failed to load image from path: {image_path}")
 
@@ -54,7 +59,7 @@ class ImageStore:
         height, width, _ = image.shape
         for y in range(0, height, sub_height):
             for x in range(0, width, sub_width):
-                sub_image = image[y+y: sub_height, x:x+ sub_width]
+                sub_image = image[y:y + sub_height, x:x + sub_width]
                 if sub_image.shape[0] == sub_height and sub_image.shape[1] == sub_width:
                     sub_images.append(sub_image)
                 if len(sub_images) >= num_images:
@@ -104,11 +109,12 @@ class ImageStore:
         q_img = QImage(cv_img_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
         return QPixmap.fromImage(q_img)
 
-    def get_sub_images(self, image_path):
-        return self.preloaded_images.get(image_path, [])
+    def get_sub_images(self, subfolder_name):
+        return self.preloaded_images.get(subfolder_name, [])
 
-    def add_image(self, image_path):
-        image_path = os.path.join("..", "databases" , "database0", image_path)
+    def add_image(self, subfolder_name, image_filename):
+        base_dir = os.path.join("..", "databases", "database0", subfolder_name)
+        image_path = os.path.join(base_dir, image_filename)
 
         print(f"Trying to add image from path: {image_path}")
 
@@ -124,7 +130,7 @@ class ImageStore:
             return False
 
         # Determine the number of sub-images based on your logic
-        num_images = self.get_num_images_from_filename(os.path.basename(image_path))
+        num_images = self.get_num_images_from_filename(image_filename)
 
         # Process the image as you do in preload_images
         square_size = self.calculate_square_size()  # Assuming you move the square size logic into a method
@@ -133,8 +139,8 @@ class ImageStore:
         pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
 
         # Store the processed images in the dictionary
-        self.preloaded_images[image_path] = pixmap_images
-        print(f"Added new image to preloaded images: {image_path}")
+        self.preloaded_images[subfolder_name] = pixmap_images
+        print(f"Added new image to preloaded images under subfolder: {subfolder_name}")
         return True
 
     def calculate_square_size(self):
@@ -148,5 +154,6 @@ class ImageStore:
         """Clear all preloaded images from memory."""
         self.preloaded_images.clear()
         print("Preloaded images cleared from memory.")
+
 # Create a global instance
 image_store = ImageStore()

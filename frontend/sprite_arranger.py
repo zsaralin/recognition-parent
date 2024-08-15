@@ -1,7 +1,7 @@
+import time
 from PyQt5.QtCore import pyqtSignal, QObject
 import config
 from logger_setup import logger
-import time
 from image_store import image_store  # Import the global instance
 
 class SpriteArranger(QObject):
@@ -69,7 +69,6 @@ class SpriteArranger(QObject):
             self.arrange_sprite(self.least_similar[1], center_row * self.num_cols + (center_col - 4), sprites, self.least_similar_indices)
 
         if len(self.most_similar) > 1:
-            print(self.most_similar[1])
             self.arrange_sprite(self.most_similar[1], center_row * self.num_cols + (center_col + 2), sprites, self.most_similar_indices)
 
         logger.info('Central sprites arranged')
@@ -95,10 +94,11 @@ class SpriteArranger(QObject):
         self.is_arranging = False  # Reset the flag after arrangement is completed
 
     def arrange_sprite(self, sprite_info, grid_index, sprites, indices_list):
-        image_path = sprite_info['path']
-        sub_images = image_store.get_sub_images(image_path)
+        subfolder_name = sprite_info['subfolder']  # Now using subfolder name
+
+        sub_images = image_store.get_sub_images(subfolder_name)
         if not sub_images:
-            print(f"Error: Preloaded sub-images for path {image_path} are None or empty")
+            print(f"Error: Preloaded sub-images for subfolder {subfolder_name} are None or empty")
             return False
 
         num_images = sprite_info['numImages']
