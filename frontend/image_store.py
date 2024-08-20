@@ -3,12 +3,15 @@ import cv2
 from PyQt5.QtGui import QImage, QPixmap, QGuiApplication
 from logger_setup import logger
 import config
+import psutil
+
 class ImageStore:
     def __init__(self):
         self.preloaded_images = {}
         self.zoom_factor = 1  # Initial zoom factor, 1.0 means no zoom
         self.compression_ratios = []  # List to store compression ratios
         self.base_dir = None
+        self.sprite_width = 100
     def preload_images(self, app, base_dir, num_cols=21):
         self.base_dir = base_dir
         logger.info('Starting preload images')
@@ -22,6 +25,10 @@ class ImageStore:
         total_images = 0
         preloaded_count = 0
 
+        # Get initial memory usage
+        process = psutil.Process(os.getpid())
+        initial_memory = process.memory_info().rss  # in bytes
+
         # Count total images
         for root, _, files in os.walk(base_dir):
             total_images += len([file for file in files if file.endswith(('.png', '.jpg', '.jpeg'))])
@@ -34,7 +41,7 @@ class ImageStore:
                     image = cv2.imread(image_path)
                     if image is not None:
                         num_images = self.get_num_images_from_filename(file)
-                        sub_images = self.split_into_sub_images(image, 100, 100, num_images)
+                        sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
                         sub_images_with_reversed = sub_images + sub_images[::-1]
                         pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
                         self.preloaded_images[parent_dir] = pixmap_images
@@ -43,13 +50,23 @@ class ImageStore:
                     else:
                         logger.error(f"Failed to load image from path: {image_path}")
 
-        # Print the accumulated zoom factors and compression ratios
-        print(f"Image zoom factor: {self.zoom_factor}x")
-        avg_compression_ratio = sum(self.compression_ratios) / len(self.compression_ratios) if self.compression_ratios else 0
-        print(f"Average compression ratio: {avg_compression_ratio:.2f}% of square size")
+        # Calculate final memory usage
+        final_memory = process.memory_info().rss  # in bytes
+        memory_used = final_memory - initial_memory  # in bytes
+        total_memory = psutil.virtual_memory().total  # in bytes
+
+        # Convert memory usage to MB
+        memory_used_mb = memory_used / (1024 * 1024)
+        total_memory_mb = total_memory / (1024 * 1024)
+
+        # Calculate percentage of memory used
+        memory_percentage = (memory_used / total_memory) * 100
+
+        print(f"Memory used after preloading: {memory_used_mb:.2f} MB ({memory_percentage:.2f}% of total memory)")
 
         logger.info(f'Preload images completed ({preloaded_count}/{total_images})')
         return self.preloaded_images
+
 
     def split_into_sub_images(self, image, sub_width, sub_height, num_images):
         sub_images = []

@@ -2,6 +2,7 @@ const tf = require('@tensorflow/tfjs-node');
 const faceapi = require('@vladmandic/face-api');
 
 let faceapiInitialized = false;
+let preferredInputSize = null; // Store the preferred input size after successful detection
 
 // Route to handle webcam capture requests
 async function getDescriptor(imageDataURL) {
@@ -13,13 +14,36 @@ async function getDescriptor(imageDataURL) {
 
     // Process the image data and generate facial descriptors
     const tensor = await loadImageAsTensor(imageDataURL);
-    const detections = await faceapi.detectAllFaces(tensor,  new faceapi.TinyFaceDetectorOptions(({ inputSize: 96 }))).withFaceLandmarks().withFaceDescriptors();
-    if(detections && detections[0]) {
-        return detections[0].descriptor;
+
+    const inputSizes = [512, 416, 480, 608, 640]; // Multiples of 32
+    let detections = null;
+
+    if (preferredInputSize) {
+        // If a preferred input size has been determined, use it
+        detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions({ inputSize: 96 }))
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+        if (detections && detections[0]) {
+            console.log(`Face detected with preferred input size: ${preferredInputSize}`);
+            return detections[0].descriptor;
+        }
     }
+
+    // Try different input sizes if no preferred size or face not detected with preferred size
+    for (const size of inputSizes) {
+        detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions({ inputSize: 96 }))
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+        if (detections && detections[0]) {
+            console.log(`Face detected with input size: ${size}`);
+            preferredInputSize = size; // Set this size as the preferred size for future detections
+            return detections[0].descriptor;
+        }
+        console.log(`No face detected with input size: ${size}`);
+    }
+
     return null;
 }
-
 
 // Function to load image data URL as TensorFlow.js tensor
 async function loadImageAsTensor(imageDataURL) {
@@ -42,19 +66,12 @@ async function initializeFaceAPI() {
     console.log("Loading models from disk...");
     await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromDisk(modelPath),
-
-        // faceapi.nets.ssdMobilenetv1.loadFromDisk(modelPath),
-        // faceapi.nets.ageGenderNet.loadFromDisk(modelPath),
         faceapi.nets.faceLandmark68Net.loadFromDisk(modelPath),
         faceapi.nets.faceRecognitionNet.loadFromDisk(modelPath),
-        // faceapi.nets.faceExpressionNet.loadFromDisk(modelPath),
     ]);
     console.log("Models loaded successfully.");
 
     optionsSSDMobileNet = new faceapi.SsdMobilenetv1Options({ minConfidence, maxResults });
-    // console.log("SSD MobileNet options set:", optionsSSDMobileNet);
 }
 
-module.exports = {getDescriptor}
-
-
+module.exports = { getDescriptor };

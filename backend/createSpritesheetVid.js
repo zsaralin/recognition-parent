@@ -1,8 +1,11 @@
 const sharp = require('sharp');
-const { join, resolve, relative } = require("path");
+const path = require("path");
 const { promises: fs } = require("fs");
 const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
 const ffmpeg = require('fluent-ffmpeg');
+
+// Set the sprite size here (either 100 or 500)
+const SPRITE_SIZE = 500;
 
 async function createSpritesheetFromVideo(videoPath) {
     try {
@@ -12,7 +15,7 @@ async function createSpritesheetFromVideo(videoPath) {
             return null;
         }
 
-        const frames = await extractFramesFromVideo(videoPath, 20); // Extract frames at 20 fps
+        const frames = await extractFramesFromVideo(videoPath, 10); // Extract frames at 20 fps
 
         if (!Array.isArray(frames) || frames.length === 0) {
             console.error('No frames extracted from video.');
@@ -22,12 +25,12 @@ async function createSpritesheetFromVideo(videoPath) {
         console.log('Extracted frames:', frames);
 
         // Create bounding boxes for each frame (for simplicity, assume full frame)
-        const bboxes = frames.map(() => [8, 0, 64, 64]); // Center crop to 64x64
+        const bboxes = frames.map(() => [8, 0, SPRITE_SIZE, SPRITE_SIZE]); // Center crop to SPRITE_SIZE x SPRITE_SIZE
 
         const spritesheetPath = await createSpritesheet(frames, bboxes);
 
         // Clean up the temporary frames directory
-        await fs.rm(resolve(__dirname, 'temp_frames'), { recursive: true, force: true });
+        await fs.rm(path.resolve(__dirname, 'temp_frames'), { recursive: true, force: true });
         console.log('Temporary frames directory deleted.');
 
         return spritesheetPath;
@@ -54,33 +57,33 @@ async function extractFramesFromVideo(videoPath, fps) {
         const frames = [];
         const outputDir = './temp_frames';
 
-// Ensure the output directory exists and is cleared at the start
+        // Ensure the output directory exists and is cleared at the start
         try {
-            await fs.rm(outputDir, {recursive: true, force: true});
+            await fs.rm(outputDir, { recursive: true, force: true });
             console.log('Temporary frames directory cleared.');
         } catch (error) {
             console.error('Error clearing temporary frames directory:', error);
         }
-        // Ensure the output directory exists
-        fs.mkdir(outputDir, {recursive: true})
+
+        fs.mkdir(outputDir, { recursive: true })
             .then(() => {
                 console.log(`Output directory created at: ${outputDir}`);
 
                 ffmpeg(videoPath)
-                    .output(join(outputDir, 'frame-%04d.png'))
+                    .output(path.join(outputDir, 'frame-%04d.png'))
                     .outputOptions(['-vf', `fps=${fps}`])
                     .on('start', (commandLine) => {
-                        console.log('FFmpeg process started:', commandLine);
+                        // console.log('FFmpeg process started:', commandLine);
                     })
                     .on('progress', (progress) => {
-                        console.log('FFmpeg progress:', progress);
+                        // console.log('FFmpeg progress:', progress);
                     })
                     .on('end', async () => {
                         console.log('FFmpeg process completed');
                         try {
                             const files = await fs.readdir(outputDir);
                             for (const file of files) {
-                                const framePath = join(outputDir, file);
+                                const framePath = path.join(outputDir, file);
                                 frames.push(framePath);
                             }
                             if (frames.length === 0) {
@@ -111,20 +114,22 @@ async function createSpritesheet(frames, bboxes) {
             throw new TypeError('Frames should be an array');
         }
 
-        console.log(frames.length);
-        const spritesheetWidth = 1920;
-        const maxSpritesheetHeight = 10000;
-        const rows = Math.ceil(frames.length / 19);
-        const spritesheetHeight = Math.min(rows * 100, maxSpritesheetHeight);
+        // Fixed width to hold exactly 19 sprites per row
+        const spritesPerRow = 19;
+        const spritesheetWidth = SPRITE_SIZE * spritesPerRow;
 
-        console.log(`Creating spritesheet with height: ${spritesheetHeight}`);
+        // Calculate the number of rows needed and the corresponding height
+        const rows = Math.ceil(frames.length / spritesPerRow);
+        const spritesheetHeight = rows * SPRITE_SIZE;
+
+        console.log(`Creating spritesheet with dimensions: ${spritesheetWidth}x${spritesheetHeight}`);
 
         let spritesheet = sharp({
             create: {
                 width: spritesheetWidth,
                 height: spritesheetHeight,
                 channels: 3,
-                background: { r: 255, g: 255, b: 255 }
+                background: { r: 255, g: 255, b: 255 } // White background
             }
         }).png();
 
@@ -147,11 +152,11 @@ async function createSpritesheet(frames, bboxes) {
 
                 return sharp(frame)
                     .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(extractWidth), height: Math.round(extractHeight) })
-                    .resize(100, 100)
+                    .resize(SPRITE_SIZE, SPRITE_SIZE)
                     .toBuffer()
                     .then(resizedBuffer => {
-                        const xPos = (index % 19) * 100;
-                        const yPos = Math.floor(index / 19) * 100;
+                        const xPos = (index % spritesPerRow) * SPRITE_SIZE;
+                        const yPos = Math.floor(index / spritesPerRow) * SPRITE_SIZE;
                         return {
                             input: resizedBuffer,
                             top: yPos,
@@ -179,7 +184,7 @@ async function createSpritesheet(frames, bboxes) {
         console.log('Saving the spritesheet');
         const filePath = await saveSpritesheet(spritesheet, frames.length);
         if (filePath) {
-            console.log('Spritesheet saved successfully');
+            console.log(`Spritesheet saved successfully at ${filePath}`);
         } else {
             console.log('Failed to save spritesheet');
         }
@@ -199,34 +204,35 @@ async function saveSpritesheet(spritesheet, totalFrames) {
     try {
         const now = new Date();
         const folderName = `X#${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}-${String(now.getMilliseconds()).padStart(3, '0')}`;
-        const spritesheetFolderPath = resolve(__dirname, '../database0', folderName, 'spritesheet');
+        const outerFolderPath = path.resolve(__dirname, '../database1', folderName);
+        const spritesheetFolderPath = path.join(outerFolderPath, 'spritesheet');
 
         await fs.mkdir(spritesheetFolderPath, { recursive: true });
 
-        const fileName = `${totalFrames}.100.100.jpg`;
-        const filePath = join(spritesheetFolderPath, fileName);
+        const fileName = `${totalFrames}.${SPRITE_SIZE}.${SPRITE_SIZE}.jpg`;
+        const filePath = path.join(spritesheetFolderPath, fileName);
 
         await sharp(spritesheet).jpeg().toFile(filePath);
 
-        const descriptorGenerated = await extractFirstImageAndGenerateDescriptor(filePath);
+        const descriptorGenerated = await extractFirstImageAndGenerateDescriptor(filePath, SPRITE_SIZE);
 
         if (descriptorGenerated) {
             console.log(`Spritesheet and descriptor saved at: ${filePath}`);
-            // Return the relative path instead of the absolute path
-            const relativePath = relative(resolve(__dirname, '../database0'), filePath);
+            const relativePath = path.relative(path.resolve(__dirname, '../database1'), filePath);
             console.log(`Relative path saved: ${relativePath}`);
             return relativePath;
         } else {
-            console.log(`No descriptor found. Attempting to clean up ${spritesheetFolderPath}`);
-            await fs.rm(spritesheetFolderPath, { recursive: true, force: true });
-            console.log(`Cleaned up ${spritesheetFolderPath}`);
+            console.log(`No descriptor found. Attempting to clean up ${outerFolderPath}`);
 
-            // Verify if the directory was actually removed
+            // Attempt to clean up the outer directory
+            await fs.rm(outerFolderPath, { recursive: true, force: true });
+            console.log(`Cleaned up ${outerFolderPath}`);
+
             try {
-                await fs.access(spritesheetFolderPath);
-                console.log(`Directory ${spritesheetFolderPath} still exists.`);
+                await fs.access(outerFolderPath);
+                console.log(`Directory ${outerFolderPath} still exists.`);
             } catch (err) {
-                console.log(`Directory ${spritesheetFolderPath} successfully removed.`);
+                console.log(`Directory ${outerFolderPath} successfully removed.`);
             }
         }
     } catch (error) {
@@ -235,17 +241,73 @@ async function saveSpritesheet(spritesheet, totalFrames) {
     return null;
 }
 
+// Helper function to delete empty subfolders in 'database1'
+async function deleteEmptySubfolders(directory) {
+    const subfolders = await fs.readdir(directory, { withFileTypes: true });
+
+    for (const subfolder of subfolders) {
+        const subfolderPath = path.join(directory, subfolder.name);
+
+        if (subfolder.isDirectory()) {
+            const files = await fs.readdir(subfolderPath);
+
+            if (files.length === 0) {
+                console.log(`Deleting empty subfolder: ${subfolderPath}`);
+                await fs.rmdir(subfolderPath);
+            } else {
+                // Recursively check subdirectories
+                await deleteEmptySubfolders(subfolderPath);
+            }
+        }
+    }
+}
+
 // Process all .mov files in the specified directory
-const movDir = resolve(__dirname, '../movs');
+const movDir = path.resolve(__dirname, '../videos/reporters');
+const processedLogPath = path.resolve(__dirname, 'processed_videos.log');
+
+// Helper function to check if a video has been processed
+async function isProcessed(videoFilePath) {
+    try {
+        const data = await fs.readFile(processedLogPath, 'utf8');
+        const processedVideos = data.split('\n').filter(Boolean);
+        return processedVideos.includes(videoFilePath);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            // Log file doesn't exist, so no videos have been processed yet
+            return false;
+        } else {
+            throw error;
+        }
+    }
+}
+
+// Helper function to log a processed video
+async function logProcessed(videoFilePath) {
+    await fs.appendFile(processedLogPath, `${videoFilePath}\n`, 'utf8');
+}
 
 fs.readdir(movDir)
     .then(async files => {
         const movFiles = files.filter(file => file.endsWith('.mov'));
+
         for (const [index, file] of movFiles.entries()) {
+
+            const videoFilePath = path.join(movDir, file);
+
+            // Check if this video has already been processed
+            const alreadyProcessed = await isProcessed(videoFilePath);
+            if (alreadyProcessed) {
+                console.log(`Skipping already processed video: ${videoFilePath}`);
+                continue;
+            }
+
             try {
-                const filePath = await createSpritesheetFromVideo(join(movDir, file));
+                const filePath = await createSpritesheetFromVideo(videoFilePath);
                 if (filePath) {
                     console.log(`Spritesheet created for ${index + 1}: ${filePath}`);
+                    // Log the successfully processed video
+                    await logProcessed(videoFilePath);
                 } else {
                     console.log(`Failed to create spritesheet for ${index + 1}`);
                 }
@@ -253,6 +315,10 @@ fs.readdir(movDir)
                 console.error(`Error processing file ${file}:`, error);
             }
         }
+
+        // After processing, delete any empty subfolders in 'database1'
+        // const databaseDir = path.resolve(__dirname, '../database1');
+        // await deleteEmptySubfolders(databaseDir);
     })
     .catch(error => {
         console.error('Error processing .mov files:', error);

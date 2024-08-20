@@ -6,6 +6,7 @@ import config
 from text_overlay import add_text_overlay
 from logger_setup import logger
 from sprite_arranger import SpriteArranger
+import random
 
 class SpriteManager(QObject):
     sprites_updated = pyqtSignal()
@@ -44,17 +45,41 @@ class SpriteManager(QObject):
         # Initialize the static overlays
         self.static_most_similar_overlay = None
         self.static_least_similar_overlay = None
+        self.black_overlay = None
         self.update_static_overlays()
+
+        self.previous_most = None
+        self.previous_least = None
+
+        self.updating_next = False;
 
     def update_static_overlays(self):
         """Update the static overlays for the sprites."""
         self.static_most_similar_overlay = self.preprocess_overlay_text("Closest Match")
         self.static_least_similar_overlay = self.preprocess_overlay_text("Farthest Match")
 
+    def create_black_overlay(self, overlay=None):
+        """Create a black overlay image or draw the provided overlay as a semi-transparent image."""
+        # Create a blank black image with full opacity
+        overlay_image = np.zeros((int(self.square_size * 3), int(self.square_size * 3), 4), dtype=np.uint8)
+
+        if overlay is None:
+            # Set the black color (R, G, B) and semi-transparency (A = 125)
+            overlay_image[:, :, 0:3] = 0  # RGB = 0, 0, 0 (black)
+            overlay_image[:, :, 3] = 125  # Alpha = 125 (semi-transparency)
+        else:
+            # Draw the overlay onto the blank image with semi-transparency
+            painter = QPainter(QImage(overlay_image.data, overlay_image.shape[1], overlay_image.shape[0], QImage.Format_RGBA8888))
+            painter.setOpacity(0.5)  # Set opacity to 50% for semi-transparency
+            painter.drawPixmap(0, 0, overlay)
+            painter.end()
+
+        # Convert to QPixmap
+        return QPixmap.fromImage(QImage(overlay_image.data, overlay_image.shape[1], overlay_image.shape[0], QImage.Format_RGBA8888))
+
     def load_sprites(self, most_similar, least_similar):
         if self.sprite_arranger_running:
             return
-
         self.sprite_arranger_running = True
         self.most_similar = most_similar
         self.least_similar = least_similar
@@ -80,6 +105,11 @@ class SpriteManager(QObject):
         self.sprite_arranger_running = False
 
     def preprocess_high_res_sprites(self):
+        if self.high_res_most_similar_sprites:
+            self.previous_most = self.high_res_most_similar_sprites[-1]
+        if self.high_res_least_similar_sprites:
+            self.previous_least = self.high_res_least_similar_sprites[-1]
+
         self.high_res_most_similar_sprites.clear()
         self.high_res_least_similar_sprites.clear()
 
@@ -89,6 +119,7 @@ class SpriteManager(QObject):
                 for sprite in self.sprites[most_similar_index]:
                     high_res_sprite = self.preprocess_sprite(sprite)
                     high_res_sprite = self.apply_static_overlay(high_res_sprite, self.static_most_similar_overlay)
+                    # high_res_sprite = self.apply_fade_transition(self.previous_most, high_res_sprite)
                     self.high_res_most_similar_sprites.append(high_res_sprite)
 
         if self.least_similar_indices:
@@ -97,10 +128,32 @@ class SpriteManager(QObject):
                 for sprite in self.sprites[least_similar_index]:
                     high_res_sprite = self.preprocess_sprite(sprite)
                     high_res_sprite = self.apply_static_overlay(high_res_sprite, self.static_least_similar_overlay)
+                    # high_res_sprite = self.apply_fade_transition(self.previous_least, high_res_sprite)
                     self.high_res_least_similar_sprites.append(high_res_sprite)
 
         self.most_similar_sprite_index = 0
         self.least_similar_sprite_index = 0
+        # self.update_most_similar()
+        # self.update_least_similar()
+
+
+    def qpixmap_to_cv2(self, qpixmap):
+        """Convert QPixmap to OpenCV image format."""
+        qimage = qpixmap.toImage()
+        qimage = qimage.convertToFormat(QImage.Format_RGBA8888)
+        width = qimage.width()
+        height = qimage.height()
+        ptr = qimage.bits()
+        ptr.setsize(height * width * 4)
+        arr = np.array(ptr, dtype=np.uint8).reshape(height, width, 4)
+        return cv2.cvtColor(arr, cv2.COLOR_BGRA2BGR)
+
+    def cv2_to_qpixmap(self, cv_img):
+        """Convert OpenCV image format to QPixmap."""
+        height, width, channel = cv_img.shape
+        bytes_per_line = 3 * width
+        qimage = QImage(cv_img.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        return QPixmap.fromImage(qimage)
 
     def preprocess_sprite(self, sprite):
         qimage = sprite.toImage()
@@ -129,20 +182,17 @@ class SpriteManager(QObject):
         return QPixmap.fromImage(QImage(overlay_image.data, overlay_image.shape[1], overlay_image.shape[0], QImage.Format_RGBA8888))
 
     def update_sprites(self):
-        # if self.is_updating_sprites:
-        #     return
-
         for index in range(len(self.sprites) - 3):  # Exclude special labels
             if self.sprites[index]:
                 self.sprite_indices[index] = (self.sprite_indices[index] + 1) % len(self.sprites[index])
 
         self.sprites_updated.emit()
 
-        if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
-            QTimer.singleShot(config.update_delay, self.update_next_sprites)
-        else:
-            logger.info("All sprites have been batch loaded into the grid.")
-            self.is_updating_sprites = False
+        # if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
+        #     QTimer.singleShot(config.update_delay, self.update_next_sprites)
+        # else:
+        #     logger.info("All sprites have been batch loaded into the grid.")
+        #     self.is_updating_sprites = False
 
     def update_most_similar(self):
         if self.high_res_most_similar_sprites:
@@ -200,6 +250,8 @@ class SpriteManager(QObject):
                     sprites = self.all_sprites[grid_index]
                     if sprites:
                         self.sprites[grid_index] = sprites
+                        # Set a random start index for the sprite
+                        self.sprite_indices[grid_index] = random.randint(0, len(sprites) - 1)
                 self.current_most_index += 1
                 updates_done += 1
 
@@ -212,13 +264,20 @@ class SpriteManager(QObject):
                     sprites = self.all_sprites[grid_index]
                     if sprites:
                         self.sprites[grid_index] = sprites
+                        # Set a random start index for the sprite
+                        self.sprite_indices[grid_index] = random.randint(0, len(sprites) - 1)
                 self.current_least_index += 1
                 updates_done += 1
 
+        # self.most_similar_timer.stop()
+        # self.least_similar_timer.stop()
         # Update sprites and emit signals
         self.sprites_updated.emit()
         self.update_most_similar()  # Trigger update for most similar sprite
         self.update_least_similar()  # Trigger update for least similar sprite
+
+        # self.most_similar_timer.start(config.gif_delay)
+        # self.least_similar_timer.start(config.gif_delay)
 
         if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
             QTimer.singleShot(config.update_delay, self.update_next_sprites)

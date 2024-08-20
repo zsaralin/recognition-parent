@@ -3,22 +3,34 @@ const { getDescriptor } = require('./getDescriptor');
 const fs = require('fs').promises;
 const path = require('path');
 
-async function extractFirstImageAndGenerateDescriptor(spritePath) {
+async function extractFirstImageAndGenerateDescriptor(spritePath, imageSize) {
     try {
         const img = await canvas.loadImage(spritePath);
-        const imageSize = 100;
         const tempCanvas = canvas.createCanvas(imageSize, imageSize);
         const ctx = tempCanvas.getContext('2d');
         const descriptors = [];
 
-        // Process only the first row and the first 5 images
-        for (let x = 0; x < 500; x += imageSize) {
+        const spritesPerRow = 19; // Assuming 19 images per row, adjust as needed
+        let x = 0;  // Start from the first image horizontally
+        let y = 0;  // Start from the first row
+
+        // Continue processing until 5 descriptors are generated
+        while (descriptors.length < 5 && y < img.height) {
             ctx.clearRect(0, 0, imageSize, imageSize);
-            ctx.drawImage(img, x, 0, imageSize, imageSize, 0, 0, imageSize, imageSize);
+            ctx.drawImage(img, x, y, imageSize, imageSize, 0, 0, imageSize, imageSize);
             const dataURL = tempCanvas.toDataURL();
             const descriptor = await getDescriptor(dataURL);
             if (descriptor) {
                 descriptors.push(descriptor);
+            }
+
+            // Move to the next image in the row
+            x += imageSize;
+
+            // If the end of the row is reached, move to the next row
+            if (x >= imageSize * spritesPerRow) {
+                x = 0;  // Reset to the first column
+                y += imageSize;  // Move down to the next row
             }
         }
 
