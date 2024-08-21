@@ -159,7 +159,7 @@ class SpriteManager(QObject):
         qimage = sprite.toImage()
 
         # Calculate the actual zoom factor
-        zoom_factor = config.zoom_factor * 3  # 3 is the base scaling factor
+        zoom_factor = config.zoom_factor  # 3 is the base scaling factor
 
         resized_qimage = qimage.scaled(
             int(qimage.width() * zoom_factor),

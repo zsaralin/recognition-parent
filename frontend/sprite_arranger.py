@@ -66,11 +66,11 @@ class SpriteArranger(QObject):
 
         # Arrange the central sprites
         if len(self.least_similar) > 1:
-            self.arrange_sprite(self.least_similar[1], center_row * self.num_cols + (center_col - 4), sprites, self.least_similar_indices)
+            self.arrange_sprite(self.least_similar[1], center_row * self.num_cols + (center_col - 4), sprites, self.least_similar_indices, 'large')
 
         if len(self.most_similar) > 1:
             print(self.most_similar[1])
-            self.arrange_sprite(self.most_similar[1], center_row * self.num_cols + (center_col + 2), sprites, self.most_similar_indices)
+            self.arrange_sprite(self.most_similar[1], center_row * self.num_cols + (center_col + 2), sprites, self.most_similar_indices, 'large')
 
         logger.info('Central sprites arranged')
 
@@ -79,10 +79,10 @@ class SpriteArranger(QObject):
 
         for pos in positions:
             if least_similar_index < len(self.least_similar) and pos[1] < center_col:
-                self.arrange_sprite(self.least_similar[least_similar_index], pos[0] * self.num_cols + pos[1], sprites, self.least_similar_indices)
+                self.arrange_sprite(self.least_similar[least_similar_index], pos[0] * self.num_cols + pos[1], sprites, self.least_similar_indices, 'standard')
                 least_similar_index += 1
             elif most_similar_index < len(self.most_similar) and pos[1] >= center_col:
-                self.arrange_sprite(self.most_similar[most_similar_index], pos[0] * self.num_cols + pos[1], sprites, self.most_similar_indices)
+                self.arrange_sprite(self.most_similar[most_similar_index], pos[0] * self.num_cols + pos[1], sprites, self.most_similar_indices, 'standard')
                 most_similar_index += 1
 
         logger.info('All sprites arranged')
@@ -94,9 +94,9 @@ class SpriteArranger(QObject):
         logger.info(f"Sprite arrangement completed in {duration:.2f} seconds")
         self.is_arranging = False  # Reset the flag after arrangement is completed
 
-    def arrange_sprite(self, sprite_info, grid_index, sprites, indices_list):
+    def arrange_sprite(self, sprite_info, grid_index, sprites, indices_list, size_type):
         image_path = sprite_info['path']
-        sub_images = image_store.get_sub_images(image_path)
+        sub_images = image_store.get_sub_images(image_path, size_type)
         if not sub_images:
             print(f"Error: Preloaded sub-images for path {image_path} are None or empty")
             return False

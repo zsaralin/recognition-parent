@@ -20,7 +20,10 @@ class ImageStore:
         screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
         largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
         window_width = largest_screen_width // 2 if config.demo else largest_screen_width
-        square_size = window_width // config.num_cols
+        square_size = window_width // num_cols
+
+        # Define a larger size as three times the square size
+        large_square_size = square_size * 3
 
         total_images = 0
         preloaded_count = 0
@@ -36,15 +39,21 @@ class ImageStore:
         for root, _, files in os.walk(base_dir):
             parent_dir = os.path.basename(os.path.dirname(root))
             for file in files:
-                if file.endswith(('.png', '.jpg', '.jpeg')):  # Adjust based on your image formats
+                if file.endswith(('.png', '.jpg', '.jpeg')):
                     image_path = os.path.join(root, file)
                     image = cv2.imread(image_path)
                     if image is not None:
                         num_images = self.get_num_images_from_filename(file)
                         sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
                         sub_images_with_reversed = sub_images + sub_images[::-1]
-                        pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
-                        self.preloaded_images[parent_dir] = pixmap_images
+                        # Create pixmaps for both sizes
+                        standard_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
+                        large_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, large_square_size)) for img in sub_images_with_reversed]
+                        # Store both sets of images
+                        self.preloaded_images[parent_dir] = {
+                            'standard': standard_pixmaps,
+                            'large': large_pixmaps
+                        }
                         preloaded_count += 1
                         print(f"Preloaded image: {parent_dir} ({preloaded_count}/{total_images})")
                     else:
@@ -66,6 +75,7 @@ class ImageStore:
 
         logger.info(f'Preload images completed ({preloaded_count}/{total_images})')
         return self.preloaded_images
+
 
 
     def split_into_sub_images(self, image, sub_width, sub_height, num_images):
@@ -123,9 +133,19 @@ class ImageStore:
         q_img = QImage(cv_img_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
         return QPixmap.fromImage(q_img)
 
-    def get_sub_images(self, image_path):
-        return self.preloaded_images.get(image_path, [])
+    def get_sub_images(self, image_path, size_type='standard'):
+        """
+        Retrieve preloaded images by path and size type.
 
+        :param image_path: The path to the images.
+        :param size_type: 'standard' or 'large' to specify which size to retrieve.
+        :return: List of QPixmap objects of the requested size or an empty list if not found.
+        """
+        # Check if the image_path exists in the preloaded_images dictionary
+        if image_path in self.preloaded_images:
+            # Return the images of the requested size
+            return self.preloaded_images[image_path].get(size_type, [])
+        return []
     def add_image(self, subfolder_name, image_filename):
         if not self.base_dir:
             raise ValueError("Base directory not set. Please call set_base_dir() before add_image().")
