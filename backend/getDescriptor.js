@@ -18,7 +18,7 @@ async function getDescriptor(imageDataURL) {
     // Dynamically calculate input sizes based on image size, ensuring multiples of 32
     const smallestDimension = Math.min(tensor.shape[0], tensor.shape[1]);
     const baseSize = Math.floor(smallestDimension / 32) * 32; // Nearest smaller multiple of 32
-    const inputSizes = [baseSize, baseSize + 32, baseSize + 64, baseSize + 96].filter(size => size > 0); // Create a range of four sizes
+    const inputSizes = [baseSize, baseSize - 64, baseSize + 32, baseSize + 32].filter(size => size > 0); // Create a range of four sizes
 
     let detections = null;
     for (const size of inputSizes) {
