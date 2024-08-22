@@ -4,7 +4,7 @@ from PyQt5.QtGui import QImage, QPixmap, QGuiApplication
 from logger_setup import logger
 import config
 import psutil
-from PyQt5.QtCore import QTimer
+from concurrent.futures import ThreadPoolExecutor
 
 class ImageStore:
     def __init__(self):
@@ -13,7 +13,7 @@ class ImageStore:
         self.compression_ratios = []  # List to store compression ratios
         self.base_dir = None
         self.sprite_width = 200
-        self.batch_size = 10  # Number of images to process per batch
+        self.executor = ThreadPoolExecutor(max_workers=2)  # Use threads for parallel processing
 
     def preload_images(self, app, base_dir, num_cols=21):
             self.base_dir = base_dir
@@ -163,6 +163,12 @@ class ImageStore:
             print(f"Image path does not exist: {image_path}")
             return False
 
+        # Process the image in a separate thread to avoid blocking the main process
+        self.executor.submit(self.process_image, subfolder_name, image_path, image_filename)
+
+        return True
+
+    def process_image(self, subfolder_name, image_path, image_filename):
         image = cv2.imread(image_path)
         if image is None:
             print(f"Failed to load image from path: {image_path}")
@@ -178,51 +184,19 @@ class ImageStore:
         sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
         sub_images_with_reversed = sub_images + sub_images[::-1]
 
-        # Store the results to be processed in batches
-        self.current_subfolder_name = subfolder_name
-        self.current_sub_images = sub_images_with_reversed
-        self.current_standard_pixmaps = []
-        self.current_large_pixmaps = []
-        self.current_index = 0
-        self.square_size = square_size
-        self.large_square_size = large_square_size
+        # Create pixmaps for both sizes
+        standard_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
+        large_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, large_square_size)) for img in sub_images_with_reversed]
 
-        # Start processing the images in batches
-        self.process_next_batch()
+        # Store both sets of images under their respective categories
+        if subfolder_name not in self.preloaded_images:
+            self.preloaded_images[subfolder_name] = {}
 
+        self.preloaded_images[subfolder_name]['standard'] = standard_pixmaps
+        self.preloaded_images[subfolder_name]['large'] = large_pixmaps
+
+        print(f"Added new image to preloaded images under subfolder: {subfolder_name}, both standard and large sizes.")
         return True
-
-    def process_next_batch(self):
-        # Determine the end index for this batch
-        end_index = min(self.current_index + self.batch_size, len(self.current_sub_images))
-
-        # Process the current batch
-        for i in range(self.current_index, end_index):
-            img = self.current_sub_images[i]
-            self.current_standard_pixmaps.append(self.cv2_to_qpixmap(self.resize_to_square(img, self.square_size)))
-            self.current_large_pixmaps.append(self.cv2_to_qpixmap(self.resize_to_square(img, self.large_square_size)))
-
-        # Update the current index
-        self.current_index = end_index
-
-        # If there are more images to process, schedule the next batch
-        if self.current_index < len(self.current_sub_images):
-            QTimer.singleShot(0, self.process_next_batch)
-        else:
-            # All images processed, store them in preloaded_images
-            if self.current_subfolder_name not in self.preloaded_images:
-                self.preloaded_images[self.current_subfolder_name] = {}
-
-            self.preloaded_images[self.current_subfolder_name]['standard'] = self.current_standard_pixmaps
-            self.preloaded_images[self.current_subfolder_name]['large'] = self.current_large_pixmaps
-
-            print(f"Added new image to preloaded images under subfolder: {self.current_subfolder_name}, both standard and large sizes.")
-            # Reset the temporary variables
-            self.current_subfolder_name = None
-            self.current_sub_images = None
-            self.current_standard_pixmaps = None
-            self.current_large_pixmaps = None
-            self.current_index = 0
 
     def calculate_square_size(self):
         app = QGuiApplication.instance()
