@@ -17,6 +17,6 @@ jump_threshold = 50
 min_face_size = 0
 zoom_factor = 1.0
 mirror = False
-demo = True
+demo = False
 auto_exposure = False
 confidence_score = .7
