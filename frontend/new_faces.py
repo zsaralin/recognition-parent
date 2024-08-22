@@ -25,7 +25,7 @@ class NewFaces:
         self.stop_threads = False
         self.executor = ThreadPoolExecutor(max_workers=5)
         self.cropped_frame = None
-        self.position_threshold = 50  # Pixel distance threshold for switching faces
+        self.position_threshold = 20  # Pixel distance threshold for switching faces
         self.marked_for_reset = False  # Flag to mark if the next detection should be treated as a new face
         self.low_confidence_counter = 0  # Counter to ensure we wait for 30 detections before allowing another reset
 

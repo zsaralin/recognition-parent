@@ -9,7 +9,7 @@ const frameWidth = 200; // Set frame width as a constant, used for both width an
 const spritesheetWidth = frameWidth * 19 + 20; // Calculate spritesheet width based on frame width
 const maxSpritesheetHeight = 10000;
 const framesPerRow = 19;
-const MIN_TIME_BETWEEN_SPRITESHEETS = 1//*1000*60; // 2 minutes in milliseconds
+const MIN_TIME_BETWEEN_SPRITESHEETS = 1000*60; // 2 minutes in milliseconds
 
 let lastSpritesheetCreationTime = 0;
 
@@ -17,7 +17,7 @@ async function createSpritesheet(frames) {
     const currentTime = Date.now();
 
     if (currentTime - lastSpritesheetCreationTime < MIN_TIME_BETWEEN_SPRITESHEETS) {
-        console.log('Spritesheet creation skipped: must wait 2 minutes between creations.');
+        console.log(`Spritesheet creation skipped: must wait ${MIN_TIME_BETWEEN_SPRITESHEETS} minutes between creations.`);
         return null;
     }
 

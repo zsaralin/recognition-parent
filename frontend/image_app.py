@@ -169,20 +169,17 @@ class ImageApp(QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_G:
-            if self.overlay_visible[0]:
-                self.overlay.close()
-                self.overlay_visible[0] = False
-                QApplication.setOverrideCursor(Qt.BlankCursor)
+            if self.overlay.isVisible():
+                self.overlay.close()  # Hide the overlay if it's visible
+                QApplication.setOverrideCursor(Qt.BlankCursor)  # Hide the cursor if overlay is hidden
             else:
-                self.overlay.show()
-                self.overlay_visible[0] = True
-                QApplication.restoreOverrideCursor()
+                self.overlay.show()  # Show the overlay if it's not visible
+                QApplication.restoreOverrideCursor()  # Restore the cursor when overlay is shown
         elif event.key() == Qt.Key_Escape:
-            if self.overlay_visible[0]:
-                self.overlay.close()
-                self.overlay_visible[0] = False
+            if self.overlay.isVisible():
+                self.overlay.close()  # Hide the overlay if pressing escape
                 QApplication.setOverrideCursor(Qt.BlankCursor)
-            self.close_app()
+            self.close_app()  # Close the application whether the overlay is visible or not
 
     def close_app(self):
         if hasattr(self, 'video_processor') and self.video_processor is not None:
