@@ -11,7 +11,7 @@ class ImageStore:
         self.zoom_factor = 1  # Initial zoom factor, 1.0 means no zoom
         self.compression_ratios = []  # List to store compression ratios
         self.base_dir = None
-        self.sprite_width = 100
+        self.sprite_width = 200
     def preload_images(self, app, base_dir, num_cols=21):
         self.base_dir = base_dir
         logger.info('Starting preload images')

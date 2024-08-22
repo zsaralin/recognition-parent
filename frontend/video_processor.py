@@ -67,7 +67,7 @@ class VideoProcessor(QThread):
         # Initialize overlay image
         self.overlay_image = None
 
-        self.filter_threshold = 10  # Threshold for detecting significant movement
+        self.filter_threshold = 150  # Threshold for detecting significant movement
 
 
     def is_stable(self):
@@ -154,7 +154,7 @@ class VideoProcessor(QThread):
                         abs(filtered_cy - cy) > self.filter_threshold or \
                         abs(filtered_w - w) > self.filter_threshold or \
                         abs(filtered_h - h) > self.filter_threshold:
-                    logger.info("Euro filter activated due to significant movement")
+                    print("Euro filter activated due to significant movement")
                     if config.create_sprites:
                         send_no_face_detected_request()
 

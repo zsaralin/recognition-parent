@@ -5,11 +5,11 @@ const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
 const DriveCapacity = require('./driveCapacity');
 
 const checkDriveCapacity = false; // Set this to disable the drive capacity check
-const frameWidth = 100; // Set frame width as a constant, used for both width and height
+const frameWidth = 200; // Set frame width as a constant, used for both width and height
 const spritesheetWidth = frameWidth * 19 + 20; // Calculate spritesheet width based on frame width
 const maxSpritesheetHeight = 10000;
 const framesPerRow = 19;
-const MIN_TIME_BETWEEN_SPRITESHEETS = 1*1000*60; // 2 minutes in milliseconds
+const MIN_TIME_BETWEEN_SPRITESHEETS = 1//*1000*60; // 2 minutes in milliseconds
 
 let lastSpritesheetCreationTime = 0;
 

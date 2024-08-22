@@ -5,7 +5,7 @@ const { extractFirstImageAndGenerateDescriptor } = require("./spriteFR");
 const ffmpeg = require('fluent-ffmpeg');
 
 // Set the sprite size here (either 100 or 500)
-const SPRITE_SIZE = 500;
+const SPRITE_SIZE = 200;
 
 async function createSpritesheetFromVideo(videoPath) {
     try {
@@ -263,7 +263,7 @@ async function deleteEmptySubfolders(directory) {
 }
 
 // Process all .mov files in the specified directory
-const movDir = path.resolve(__dirname, '../videos/reporters');
+const movDir = path.resolve(__dirname, '../videos/celeb-youtube');
 const processedLogPath = path.resolve(__dirname, 'processed_videos.log');
 
 // Helper function to check if a video has been processed
@@ -289,7 +289,7 @@ async function logProcessed(videoFilePath) {
 
 fs.readdir(movDir)
     .then(async files => {
-        const movFiles = files.filter(file => file.endsWith('.mov'));
+        const movFiles = files.filter(file => file.endsWith('.mp4'));
 
         for (const [index, file] of movFiles.entries()) {
 
