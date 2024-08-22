@@ -67,23 +67,22 @@ class VideoProcessor(QThread):
         # Initialize overlay image
         self.overlay_image = None
 
-        self.filter_threshold = 150  # Threshold for detecting significant movement
-
+        self.filter_threshold = 100  # Threshold for detecting significant movement
 
     def is_stable(self):
-            if len(self.position_history) < self.max_history_length:
+        if len(self.position_history) < self.max_history_length:
+            return False
+
+        # Calculate the average position
+        avg_cx = sum(pos[0] for pos in self.position_history) / len(self.position_history)
+        avg_cy = sum(pos[1] for pos in self.position_history) / len(self.position_history)
+
+        # Check if all positions are within the stability threshold
+        for cx, cy in self.position_history:
+            if abs(cx - avg_cx) > self.stability_threshold or abs(cy - avg_cy) > self.stability_threshold:
                 return False
 
-            # Calculate the average position
-            avg_cx = sum(pos[0] for pos in self.position_history) / len(self.position_history)
-            avg_cy = sum(pos[1] for pos in self.position_history) / len(self.position_history)
-
-            # Check if all positions are within the stability threshold
-            for cx, cy in self.position_history:
-                if abs(cx - avg_cx) > self.stability_threshold or abs(cy - avg_cy) > self.stability_threshold:
-                    return False
-
-            return True
+        return True
 
     def create_text_overlay(self, width, height):
         """Create the text overlay and resize it to the expected frame size."""
@@ -150,10 +149,14 @@ class VideoProcessor(QThread):
                 filtered_w = self.euro_filter_w.filter(w, current_time)
                 filtered_h = self.euro_filter_h.filter(h, current_time)
 
-                if abs(filtered_cx - cx) > self.filter_threshold or \
-                        abs(filtered_cy - cy) > self.filter_threshold or \
-                        abs(filtered_w - w) > self.filter_threshold or \
-                        abs(filtered_h - h) > self.filter_threshold:
+                significant_movement = (
+                        abs(filtered_cx - cx) > self.filter_threshold or
+                        abs(filtered_cy - cy) > self.filter_threshold or
+                        abs(filtered_w - w) > self.filter_threshold or
+                        abs(filtered_h - h) > self.filter_threshold
+                )
+
+                if significant_movement:
                     print("Euro filter activated due to significant movement")
                     if config.create_sprites:
                         send_no_face_detected_request()
@@ -201,7 +204,7 @@ class VideoProcessor(QThread):
 
             self.new_faces.set_cropped_frame(cropped_frame)
 
-            if bbox and config.create_sprites:
+            if bbox and config.create_sprites and not significant_movement:
                 send_add_frame_request(resized_frame, (x, y, w, h))
 
             self.apply_text_overlay(resized_frame)  # Apply the current overlay
@@ -215,6 +218,7 @@ class VideoProcessor(QThread):
 
         except Exception as e:
             logger.exception(f"Error processing frame: {e}")
+
     def convert_image_to_data_url(frame):
         """Convert an image to JPEG format and encode it as a Base64 string."""
         _, buffer = cv2.imencode('.jpg', frame)  # Encode the frame as JPEG
