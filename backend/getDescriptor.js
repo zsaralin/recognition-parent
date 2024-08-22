@@ -15,7 +15,7 @@ async function getDescriptor(imageDataURL) {
     // Process the image data and generate facial descriptors
     const tensor = await loadImageAsTensor(imageDataURL);
 
-    const inputSizes = [512, 416, 480, 608, 640]; // Multiples of 32
+    const inputSizes = [92]//[512, 416, 480, 608, 640]; // Multiples of 32
     let detections = null;
 
     if (preferredInputSize) {

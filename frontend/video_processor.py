@@ -11,7 +11,7 @@ from text_overlay import add_text_overlay
 import time
 from one_euro import OneEuroFilter
 import asyncio
-from backend_communicator import send_add_frame_request
+from backend_communicator import send_add_frame_request, send_no_face_detected_request
 
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QPixmap)
@@ -67,20 +67,23 @@ class VideoProcessor(QThread):
         # Initialize overlay image
         self.overlay_image = None
 
+        self.filter_threshold = 10  # Threshold for detecting significant movement
+
+
     def is_stable(self):
-        if len(self.position_history) < self.max_history_length:
-            return False
-
-        # Calculate the average position
-        avg_cx = sum(pos[0] for pos in self.position_history) / len(self.position_history)
-        avg_cy = sum(pos[1] for pos in self.position_history) / len(self.position_history)
-
-        # Check if all positions are within the stability threshold
-        for cx, cy in self.position_history:
-            if abs(cx - avg_cx) > self.stability_threshold or abs(cy - avg_cy) > self.stability_threshold:
+            if len(self.position_history) < self.max_history_length:
                 return False
 
-        return True
+            # Calculate the average position
+            avg_cx = sum(pos[0] for pos in self.position_history) / len(self.position_history)
+            avg_cy = sum(pos[1] for pos in self.position_history) / len(self.position_history)
+
+            # Check if all positions are within the stability threshold
+            for cx, cy in self.position_history:
+                if abs(cx - avg_cx) > self.stability_threshold or abs(cy - avg_cy) > self.stability_threshold:
+                    return False
+
+            return True
 
     def create_text_overlay(self, width, height):
         """Create the text overlay and resize it to the expected frame size."""
@@ -146,6 +149,14 @@ class VideoProcessor(QThread):
                 filtered_cy = self.euro_filter_cy.filter(cy, current_time)
                 filtered_w = self.euro_filter_w.filter(w, current_time)
                 filtered_h = self.euro_filter_h.filter(h, current_time)
+
+                if abs(filtered_cx - cx) > self.filter_threshold or \
+                        abs(filtered_cy - cy) > self.filter_threshold or \
+                        abs(filtered_w - w) > self.filter_threshold or \
+                        abs(filtered_h - h) > self.filter_threshold:
+                    logger.info("Euro filter activated due to significant movement")
+                    if config.create_sprites:
+                        send_no_face_detected_request()
 
                 filtered_w = max(1, int(filtered_w))
                 filtered_h = max(1, int(filtered_h))
