@@ -24,7 +24,6 @@ class SpriteArranger(QObject):
         self.least_similar = least_similar
 
     def arrange_sprites(self):
-
         if self.is_arranging:
             logger.info('Sprite arrangement is already in progress. Skipping new request.')
             return
@@ -69,7 +68,6 @@ class SpriteArranger(QObject):
             self.arrange_sprite(self.least_similar[1], center_row * self.num_cols + (center_col - 4), sprites, self.least_similar_indices, 'large')
 
         if len(self.most_similar) > 1:
-            print(self.most_similar[1])
             self.arrange_sprite(self.most_similar[1], center_row * self.num_cols + (center_col + 2), sprites, self.most_similar_indices, 'large')
 
         logger.info('Central sprites arranged')
@@ -85,7 +83,7 @@ class SpriteArranger(QObject):
                 self.arrange_sprite(self.most_similar[most_similar_index], pos[0] * self.num_cols + pos[1], sprites, self.most_similar_indices, 'standard')
                 most_similar_index += 1
 
-        logger.info('All sprites arranged')
+        print('All sprites arranged')
         self.sprites_arranged.emit(sprites, self.most_similar_indices, self.least_similar_indices)
         self.arrangement_completed.emit()
 

@@ -164,6 +164,7 @@ class ImageApp(QWidget):
                 cell.clear()  # Clear the cell if no sprite is available
 
     def load_sprites(self, most_similar, least_similar):
+        print('holaaaaa')
         self.sprite_manager.load_sprites(most_similar, least_similar)
 
     def keyPressEvent(self, event):

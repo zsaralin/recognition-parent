@@ -165,6 +165,10 @@ class SliderOverlay(QWidget):
         self.auto_exposure_checkbox.setFont(font)
         self.auto_exposure_checkbox.stateChanged.connect(self.toggle_auto_exposure)
 
+        self.confidence_score_slider = self.create_double_slider(0.0, 1.0, config.confidence_score, step=0.01)
+        self.confidence_score_input = self.create_input(0.0, 1.0, is_double=True)
+        self.confidence_score_input.setText(f"{config.confidence_score:.2f}")
+
         # Adding the groups to the main layout
         main_layout.addLayout(create_slider_group('GIF Delay', self.gif_delay_slider, self.gif_delay_input))
         main_layout.addLayout(create_slider_group('Num Cols', self.num_cols_slider, self.num_cols_input))
@@ -179,6 +183,7 @@ class SliderOverlay(QWidget):
         main_layout.addLayout(create_slider_group('Gain', self.gain_slider, self.gain_input))
         main_layout.addLayout(create_slider_group('Jump Threshold', self.jump_threshold_slider, self.jump_threshold_input))
         main_layout.addLayout(create_slider_group('Min Face Size', self.min_face_size_slider, self.min_face_size_input))
+        main_layout.addLayout(create_slider_group('Min Confidence Score', self.confidence_score_slider, self.confidence_score_input))
         main_layout.addLayout(create_slider_group('Cell Zoom Factor', self.cell_zoom_factor_slider, self.cell_zoom_factor_input))
         main_layout.addWidget(self.auto_exposure_checkbox)
 
@@ -324,6 +329,8 @@ class SliderOverlay(QWidget):
                 sender.setValue(snapped_value)
                 sender.blockSignals(False)
             self.rotation_angle_input.setText(str(snapped_value))
+        elif sender == self.confidence_score_slider:
+            self.confidence_score_input.setText(f"{sender.value() / 100:.2f}")
         self.config_changed.emit()
 
     def update_value_from_input(self):
@@ -364,6 +371,8 @@ class SliderOverlay(QWidget):
             self.min_face_size_slider.setValue(int(value))
         elif sender == self.cell_zoom_factor_input:
             self.cell_zoom_factor_slider.setValue(int(value * 10))
+        elif sender == self.confidence_score_input:
+            self.confidence_score_slider.setValue(int(float(value) * 100))
         elif sender == self.rotation_angle_slider:
             value = sender.value()
             snapped_value = round(value / 90) * 90
@@ -400,6 +409,7 @@ class SliderOverlay(QWidget):
         config.jump_threshold = self.jump_threshold_slider.value()
         config.min_face_size = self.min_face_size_slider.value()
         config.zoom_factor = self.cell_zoom_factor_slider.value() / 10.0  # Save the zoom factor
+        config.confidence_score = self.confidence_score_slider.value() / 100.0
         config.auto_exposure = self.auto_exposure_checkbox.isChecked()
 
         # Retain the demo value from the previous configuration
@@ -426,6 +436,7 @@ class SliderOverlay(QWidget):
             config_file.write(f"jump_threshold = {config.jump_threshold}\n")
             config_file.write(f"min_face_size = {config.min_face_size}\n")
             config_file.write(f"zoom_factor = {config.zoom_factor}\n")
+            config_file.write(f"confidence_score = {config.confidence_score}\n")
             config_file.write(f"mirror = {config.mirror}\n")
             config_file.write(f"demo = {config.demo}\n")  # Write the demo config value
             config_file.write(f"auto_exposure= {config.auto_exposure}\n")

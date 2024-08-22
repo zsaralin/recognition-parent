@@ -54,8 +54,14 @@ async function noFaceDetected() {
             clearFrames();
 
             // Use the modified arrays to create the spritesheet
-            const filePath = await createSpritesheet(oldFrames, oldBboxes);
-            return { success: !!filePath, filePath };
+            const result = await createSpritesheet(oldFrames, oldBboxes);
+            if (result) {
+                const [subfolder, filePath] = result;
+                return { success: !!subfolder, subfolder , filePath}
+                // Proceed with using subfolder and filePath
+            } else {
+                console.error("Failed to create spritesheet.");
+            }
         } catch (error) {
             console.error('Error creating spritesheet:', error);
             throw error;

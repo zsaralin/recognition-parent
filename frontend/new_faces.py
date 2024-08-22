@@ -125,8 +125,8 @@ class NewFaces:
 
             # Check the confidence score of the detected face
             confidence_score = closest_face.score[0]  # Assuming score is a list with one element
-            if confidence_score < 0.7:
-                if self.low_confidence_counter >= 10:  # Only allow marking for reset after 30 detections
+            if confidence_score < config.confidence_score:
+                if self.low_confidence_counter >= 20:  # Only allow marking for reset after 30 detections
                     print(f"Face detection confidence ({confidence_score}) is below the threshold. Marking for reset on next detection.")
                     self.marked_for_reset = True
                     self.low_confidence_counter = 0  # Reset the counter after marking

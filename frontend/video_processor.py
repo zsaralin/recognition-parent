@@ -57,7 +57,7 @@ class VideoProcessor(QThread):
         self.capture_frame_counter = 0
         self.saved_frame = None
         self.position_history = []
-        self.max_history_length = 10  # Number of frames to check for stability
+        self.max_history_length = 20  # Number of frames to check for stability
         self.stability_threshold = 5  # Pixels within which movement is considered stable
 
         # Initialize FPS calculation
@@ -204,6 +204,11 @@ class VideoProcessor(QThread):
 
         except Exception as e:
             logger.exception(f"Error processing frame: {e}")
+    def convert_image_to_data_url(frame):
+        """Convert an image to JPEG format and encode it as a Base64 string."""
+        _, buffer = cv2.imencode('.jpg', frame)  # Encode the frame as JPEG
+        jpg_as_text = base64.b64encode(buffer).decode()  # Convert to Base64
+        return f"data:image/jpeg;base64,{jpg_as_text}"
 
     def extract_frame(self, frame, w, h, cx, cy):
         frame_height, frame_width = frame.shape[:2]

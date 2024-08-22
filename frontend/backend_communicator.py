@@ -119,14 +119,21 @@ def send_no_face_detected_request():
             response = requests.post(url)
             if response.status_code == 200:
                 res_json = response.json()
+                print(res_json)
+
                 result['success'] = res_json.get('success', False)
                 if result['success']:
                     file_path = res_json.get('filePath')
+                    subfolder = res_json.get('subfolder')
+
                     result['filePath'] = file_path
+                    result['subfolder'] = subfolder
                     if file_path:
                         logger.info(f"Received new spritesheet path: {file_path}")
-                        if image_store.add_image(file_path):
+                        if image_store.add_image(subfolder, file_path):
                             logger.info(f"Image {file_path} added to preloaded images.")
+                        else:
+                            result['success'] = False
             else:
                 result['success'] = False
                 # logger.error(f"Error processing frames: {response.status_code}, {response.text}")
@@ -141,7 +148,6 @@ def send_no_face_detected_request():
             print("Spritesheet created and image added successfully:", response.get('filePath'))
         else:
             print("Failed to create spritesheet or add image.")
-
     threading.Thread(target=make_request).start()
 
 def set_camera_control(control_name, value):

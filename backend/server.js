@@ -55,50 +55,6 @@ app.post('/get-matches', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-const upload = multer({ storage: multer.memoryStorage() });
-app.post('/create-spritesheet', upload.array('frames'), async (req, res) => {
-    try {
-        console.log('Received request');
-
-        // Ensure req.files is defined and is an array
-        if (!req.files || !Array.isArray(req.files)) {
-            console.log('Invalid or missing files');
-            return res.status(400).json({ error: 'Files not provided or invalid' });
-        }
-
-        const frames = req.files.map(file => file.buffer);
-
-        // Ensure req.body.bboxes is defined and is a valid JSON string
-        let bboxes;
-        try {
-            bboxes = JSON.parse(req.body.bboxes);
-        } catch (e) {
-            console.log('Invalid bboxes JSON');
-            return res.status(400).json({ error: 'Invalid bboxes JSON' });
-        }
-
-        // Additional check to ensure bboxes is an array
-        if (!Array.isArray(bboxes)) {
-            console.log('Invalid bboxes array');
-            return res.status(400).json({ error: 'Bboxes is not an array' });
-        }
-
-        if (frames.length !== bboxes.length) {
-            console.log('Frames and bboxes array length mismatch');
-            return res.status(400).json({ error: 'Frames and bboxes array length mismatch' });
-        }
-
-        console.log('Starting createSpritesheet');
-
-        // Process the spritesheet asynchronously
-        createSpritesheet(frames, bboxes, res);
-
-    } catch (error) {
-        console.error('Unexpected error creating spritesheet:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
 // New route to preload images
 app.get('/preload-images', async (req, res) => {
     try {

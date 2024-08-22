@@ -199,16 +199,14 @@ class SpriteManager(QObject):
             sprite = self.high_res_most_similar_sprites[self.most_similar_sprite_index]
             self.most_similar_updated.emit(sprite)
             self.most_similar_sprite_index = (self.most_similar_sprite_index + 1) % len(self.high_res_most_similar_sprites)
-        else:
-            print("No high_res_most_similar_sprites available to update.")
+
 
     def update_least_similar(self):
         if self.high_res_least_similar_sprites:
             sprite = self.high_res_least_similar_sprites[self.least_similar_sprite_index]
             self.least_similar_updated.emit(sprite)
             self.least_similar_sprite_index = (self.least_similar_sprite_index + 1) % len(self.high_res_least_similar_sprites)
-        else:
-            print("No high_res_least_similar_sprites available to update.")
+
 
     def apply_static_overlay(self, sprite, overlay):
         # Calculate the position to draw the overlay based on the original sprite size
@@ -233,7 +231,6 @@ class SpriteManager(QObject):
 
     def update_next_sprites(self):
         self.is_updating_sprites = True
-
         # Preprocess high-res sprites before updating
         self.preprocess_high_res_sprites()
 

@@ -15,12 +15,12 @@ async function getDescriptor(imageDataURL) {
     // Process the image data and generate facial descriptors
     const tensor = await loadImageAsTensor(imageDataURL);
 
-    const inputSizes = [512, 416, 480, 608, 640]; // Multiples of 32
+    const inputSizes = [96]; // Multiples of 32
     let detections = null;
 
     if (preferredInputSize) {
         // If a preferred input size has been determined, use it
-        detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions({ inputSize: 96 }))
+        detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions({ inputSize: preferredInputSize }))
             .withFaceLandmarks()
             .withFaceDescriptors();
         if (detections && detections[0]) {
@@ -31,11 +31,10 @@ async function getDescriptor(imageDataURL) {
 
     // Try different input sizes if no preferred size or face not detected with preferred size
     for (const size of inputSizes) {
-        detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions({ inputSize: 96 }))
+        detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions({ inputSize: size }))
             .withFaceLandmarks()
             .withFaceDescriptors();
         if (detections && detections[0]) {
-            console.log(`Face detected with input size: ${size}`);
             preferredInputSize = size; // Set this size as the preferred size for future detections
             return detections[0].descriptor;
         }

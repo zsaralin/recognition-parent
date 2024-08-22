@@ -146,38 +146,48 @@ class ImageStore:
             # Return the images of the requested size
             return self.preloaded_images[image_path].get(size_type, [])
         return []
+
     def add_image(self, subfolder_name, image_filename):
         if not self.base_dir:
-            raise ValueError("Base directory not set. Please call set_base_dir() before add_image().")
+            print("Base directory not set. Please call set_base_dir() before add_image().")
+            return False
 
         base_dir = os.path.join(self.base_dir, subfolder_name)
-        image_path = os.path.join(base_dir, image_filename)
+        image_path = os.path.join(base_dir, 'spritesheet', image_filename)
 
         print(f"Trying to add image from path: {image_path}")
 
-        # Verify that the image path is correct
         if not os.path.exists(image_path):
             print(f"Image path does not exist: {image_path}")
             return False
 
-        # Load the image using OpenCV
         image = cv2.imread(image_path)
         if image is None:
             print(f"Failed to load image from path: {image_path}")
             return False
 
-        # Determine the number of sub-images based on your logic
         num_images = self.get_num_images_from_filename(image_filename)
 
-        # Process the image as you do in preload_images
-        square_size = self.calculate_square_size()  # Assuming you move the square size logic into a method
-        sub_images = self.split_into_sub_images(image, 100, 100, num_images)
-        sub_images_with_reversed = sub_images + sub_images[::-1]
-        pixmap_images = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
+        # Calculate sizes based on the preloading strategy
+        square_size = self.calculate_square_size()  # Standard size
+        large_square_size = square_size * 3  # Large size
 
-        # Store the processed images in the dictionary
-        self.preloaded_images[subfolder_name] = pixmap_images
-        print(f"Added new image to preloaded images under subfolder: {subfolder_name}")
+        # Split images for both sizes
+        sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
+        sub_images_with_reversed = sub_images + sub_images[::-1]
+
+        # Create pixmaps for both sizes
+        standard_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
+        large_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, large_square_size)) for img in sub_images_with_reversed]
+
+        # Store both sets of images under their respective categories
+        if subfolder_name not in self.preloaded_images:
+            self.preloaded_images[subfolder_name] = {}
+
+        self.preloaded_images[subfolder_name]['standard'] = standard_pixmaps
+        self.preloaded_images[subfolder_name]['large'] = large_pixmaps
+
+        print(f"Added new image to preloaded images under subfolder: {subfolder_name}, both standard and large sizes.")
         return True
 
     def calculate_square_size(self):

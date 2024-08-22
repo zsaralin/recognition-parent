@@ -81,8 +81,7 @@ class MediaPipeFaceDetection:
             else:
                 logger.error("Bounding box is out of frame bounds.")
                 self.current_face_bbox = None
-        else:
-            print("No valid face bounding box detected.")
+
 
         # Call set_curr_face with the closest face result, frame, and callback
         self.new_faces.set_curr_face(results, frame, callback)
