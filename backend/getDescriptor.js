@@ -15,27 +15,19 @@ async function getDescriptor(imageDataURL) {
     // Process the image data and generate facial descriptors
     const tensor = await loadImageAsTensor(imageDataURL);
 
-    const inputSizes = [96, 512, 416, 480, 608, 640]; // Multiples of 32
+    // Dynamically calculate input sizes based on image size, ensuring multiples of 32
+    const smallestDimension = Math.min(tensor.shape[0], tensor.shape[1]);
+    const baseSize = Math.floor(smallestDimension / 32) * 32; // Nearest smaller multiple of 32
+    const inputSizes = [baseSize, baseSize + 32, baseSize + 64, baseSize + 96].filter(size => size > 0); // Create a range of four sizes
+
     let detections = null;
-
-    if (preferredInputSize) {
-        // If a preferred input size has been determined, use it
-        detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions({ inputSize: preferredInputSize }))
-            .withFaceLandmarks()
-            .withFaceDescriptors();
-        if (detections && detections[0]) {
-            console.log(`Face detected with preferred input size: ${preferredInputSize}`);
-            return detections[0].descriptor;
-        }
-    }
-
-    // Try different input sizes if no preferred size or face not detected with preferred size
     for (const size of inputSizes) {
         detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions({ inputSize: size }))
             .withFaceLandmarks()
             .withFaceDescriptors();
-        if (detections && detections[0]) {
-            preferredInputSize = size; // Set this size as the preferred size for future detections
+        if (detections && detections.length > 0) {
+            preferredInputSize = size; // Update the preferred input size
+            console.log(`Face detected with input size: ${size}`);
             return detections[0].descriptor;
         }
         console.log(`No face detected with input size: ${size}`);
@@ -54,6 +46,7 @@ async function loadImageAsTensor(imageDataURL) {
 const minConfidence = 0.5;
 const maxResults = 1;
 let optionsSSDMobileNet;
+
 // Function to initialize face-api.js
 async function initializeFaceAPI() {
     console.log("Setting TensorFlow backend...");

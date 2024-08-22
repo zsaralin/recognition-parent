@@ -94,6 +94,7 @@ class SpriteManager(QObject):
         self.all_sprites = all_sprites
         self.most_similar_indices = most_similar_indices
         self.least_similar_indices = least_similar_indices
+        self.least_similar_indices = least_similar_indices
         self.current_most_index = 0
         self.current_least_index = 0
 
