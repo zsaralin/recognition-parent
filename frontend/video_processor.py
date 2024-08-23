@@ -58,7 +58,6 @@ class VideoProcessor(QThread):
         self.saved_frame = None
         self.position_history = []
         self.max_history_length = 20  # Number of frames to check for stability
-        self.stability_threshold = 5  # Pixels within which movement is considered stable
 
         # Initialize FPS calculation
         self.prev_time = time.time()
@@ -66,8 +65,6 @@ class VideoProcessor(QThread):
 
         # Initialize overlay image
         self.overlay_image = None
-
-        self.filter_threshold = 100  # Threshold for detecting significant movement
 
     def is_stable(self):
         if len(self.position_history) < self.max_history_length:
@@ -79,7 +76,7 @@ class VideoProcessor(QThread):
 
         # Check if all positions are within the stability threshold
         for cx, cy in self.position_history:
-            if abs(cx - avg_cx) > self.stability_threshold or abs(cy - avg_cy) > self.stability_threshold:
+            if abs(cx - avg_cx) > config.move_threshold or abs(cy - avg_cy) >  config.move_threshold:
                 return False
 
         return True
@@ -149,18 +146,6 @@ class VideoProcessor(QThread):
                 filtered_w = self.euro_filter_w.filter(w, current_time)
                 filtered_h = self.euro_filter_h.filter(h, current_time)
 
-                significant_movement = (
-                        abs(filtered_cx - cx) > self.filter_threshold or
-                        abs(filtered_cy - cy) > self.filter_threshold or
-                        abs(filtered_w - w) > self.filter_threshold or
-                        abs(filtered_h - h) > self.filter_threshold
-                )
-
-                if significant_movement:
-                    print("Euro filter activated due to significant movement")
-                    if config.create_sprites:
-                        send_no_face_detected_request()
-
                 filtered_w = max(1, int(filtered_w))
                 filtered_h = max(1, int(filtered_h))
                 filtered_cx = int(filtered_cx)
@@ -181,6 +166,8 @@ class VideoProcessor(QThread):
                     # Capture the saved frame after 30 consistent detections and stability
                     self.saved_frame = original_frame.copy()
                     self.consistent_detection_counter += 1  # Prevent further saving
+                elif not self.is_stable():
+                    self.new_faces.treat_as_no_face_detected()
 
             else:
                 self.no_face_counter += 1
@@ -204,7 +191,7 @@ class VideoProcessor(QThread):
 
             self.new_faces.set_cropped_frame(cropped_frame)
 
-            if bbox and config.create_sprites and not significant_movement:
+            if bbox and config.create_sprites and self.is_stable():
                 send_add_frame_request(resized_frame, (x, y, w, h))
 
             self.apply_text_overlay(resized_frame)  # Apply the current overlay

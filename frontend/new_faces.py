@@ -25,7 +25,6 @@ class NewFaces:
         self.stop_threads = False
         self.executor = ThreadPoolExecutor(max_workers=5)
         self.cropped_frame = None
-        self.position_threshold = 20  # Pixel distance threshold for switching faces
         self.marked_for_reset = False  # Flag to mark if the next detection should be treated as a new face
         self.low_confidence_counter = 0  # Counter to ensure we wait for 30 detections before allowing another reset
 
@@ -137,12 +136,12 @@ class NewFaces:
                 logger.info("Resetting face due to previous low confidence. Treating as a new face.")
                 self.reset_face()
 
-            if self.curr_bbox is not None:
-                distance = self.calculate_bbox_distance(self.curr_bbox, bbox)
-                if distance > self.position_threshold:
-                    logger.info(f"Significant movement detected. Resetting face due to distance: {distance}")
-                    self.treat_as_no_face_detected()
-                    return
+            # if self.curr_bbox is not None:
+            #     distance = self.calculate_bbox_distance(self.curr_bbox, bbox)
+            #     if distance > config.move_threshold:
+            #         logger.info(f"Significant movement detected. Resetting face due to distance: {distance}")
+            #         self.treat_as_no_face_detected()
+            #         return
 
             self.curr_bbox = bbox
 

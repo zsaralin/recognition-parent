@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QLineEdit, QP
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
 import config
-from backend_communicator import set_camera_control
+from backend_communicator import set_camera_control, update_max_frames, update_min_frames, update_min_time_between_frames
 
 class SliderOverlay(QWidget):
     config_changed = pyqtSignal()  # Signal to notify when config changes
@@ -12,7 +12,7 @@ class SliderOverlay(QWidget):
         super().__init__(parent)
         self.initUI()
         self.setFocusPolicy(Qt.StrongFocus)  # Ensure the widget can receive key events
-        self.setFixedSize(320, 600)  # Set a fixed size for the window with extra width and height
+        self.setFixedSize(500, 600)  # Set a fixed size for the window with extra width and height
         self.move(10, 10)  # Move the window to the top-left corner of the screen
 
         # Set the entire widget's background color to white
@@ -127,6 +127,22 @@ class SliderOverlay(QWidget):
         self.confidence_score_input = self.create_input(0.0, 1.0, is_double=True)
         self.confidence_score_input.setText(str(config.confidence_score))
 
+        self.move_threshold_slider = self.create_slider(10, 100, config.move_threshold)
+        self.move_threshold_input = self.create_input(10, 100, is_double=False)
+        self.move_threshold_input.setText(str(config.move_threshold))
+
+        self.min_num_ss_frames_slider = self.create_slider(5, 300, config.min_num_ss_frames)
+        self.min_num_ss_frames_input = self.create_input(5, 300, is_double=False)
+        self.min_num_ss_frames_input.setText(str(config.min_num_ss_frames))
+
+        self.max_num_rows_ss_frames_slider = self.create_slider(10, 20, config.max_num_rows_ss_frames)
+        self.max_num_rows_ss_frames_input = self.create_input(10, 20, is_double=False)
+        self.max_num_rows_ss_frames_input.setText(str(config.max_num_rows_ss_frames))
+
+        self.min_time_between_spritesheet_slider = self.create_double_slider(0, 4, config.min_time_between_spritesheet, step = .1)
+        self.min_time_between_spritesheet_input = self.create_input(0, 4, is_double=True)
+        self.min_time_between_spritesheet_input.setText(str(config.min_time_between_spritesheet))
+
         self.create_sprites_checkbox = QCheckBox('Create Sprites', self)
         self.create_sprites_checkbox.setChecked(config.create_sprites)
         self.create_sprites_checkbox.setFont(font)
@@ -184,6 +200,11 @@ class SliderOverlay(QWidget):
         main_layout.addLayout(create_slider_group('Jump Threshold', self.jump_threshold_slider, self.jump_threshold_input))
         main_layout.addLayout(create_slider_group('Min Face Size', self.min_face_size_slider, self.min_face_size_input))
         main_layout.addLayout(create_slider_group('Min Confidence Score', self.confidence_score_slider, self.confidence_score_input))
+        main_layout.addLayout(create_slider_group('Move Threshold', self.move_threshold_slider, self.move_threshold_input))
+        main_layout.addLayout(create_slider_group('Min Num Spritesheet Frames', self.min_num_ss_frames_slider, self.min_num_ss_frames_input))
+        main_layout.addLayout(create_slider_group('Max Num Rows Spritesheet Frames', self.max_num_rows_ss_frames_slider, self.max_num_rows_ss_frames_input))
+        main_layout.addLayout(create_slider_group('Minutes between Spritesheets', self.min_time_between_spritesheet_slider, self.min_time_between_spritesheet_input))
+
         main_layout.addLayout(create_slider_group('Cell Zoom Factor', self.cell_zoom_factor_slider, self.cell_zoom_factor_input))
         main_layout.addWidget(self.auto_exposure_checkbox)
 
@@ -321,6 +342,8 @@ class SliderOverlay(QWidget):
             self.min_face_size_input.setText(str(sender.value()))
         elif sender == self.cell_zoom_factor_slider:
             self.cell_zoom_factor_input.setText(str(sender.value() / 10.0))
+        elif sender == self.move_threshold_slider:
+            self.move_threshold_input.setText(str(sender.value()))
         elif sender == self.rotation_angle_slider:
             value = sender.value()
             snapped_value = round(value / 90) * 90
@@ -331,6 +354,12 @@ class SliderOverlay(QWidget):
             self.rotation_angle_input.setText(str(snapped_value))
         elif sender == self.confidence_score_slider:
             self.confidence_score_input.setText(str(sender.value() / 10.0))
+        elif sender == self.min_num_ss_frames_slider:
+            self.min_num_ss_frames_input.setText(str(sender.value()))
+        elif sender == self.max_num_rows_ss_frames_slider:
+            self.max_num_rows_ss_frames_input.setText(str(sender.value()))
+        elif sender == self.min_time_between_spritesheet_slider:
+            self.min_time_between_spritesheet_input.setText(str(sender.value() / 10.0))
         self.config_changed.emit()
 
     def update_value_from_input(self):
@@ -373,6 +402,8 @@ class SliderOverlay(QWidget):
             self.cell_zoom_factor_slider.setValue(int(value * 10))
         elif sender == self.confidence_score_input:
             self.confidence_score_slider.setValue(int(value) * 10)
+        elif sender == self.move_threshold_input:
+            self.move_threshold_slider.setValue(int(value))
         elif sender == self.rotation_angle_slider:
             value = sender.value()
             snapped_value = round(value / 90) * 90
@@ -384,12 +415,33 @@ class SliderOverlay(QWidget):
             if snapped_value == 0:
                 snapped_value = 0
             self.rotation_angle_input.setText(str(snapped_value))
+        elif sender == self.min_num_ss_frames_input:
+            self.min_num_ss_frames_slider.setValue(int(value))
+        elif sender == self.max_num_rows_ss_frames_input:
+            self.max_num_rows_ss_frames_slider.setValue(int(value))
+        elif sender == self.min_time_between_spritesheet_input:
+            self.min_time_between_spritesheet_slider.setValue(int(value* 10))
         self.config_changed.emit()
 
     def toggle_fps_display(self, state):
         config.show_fps = (state == Qt.Checked)  # Update the config immediately
 
     def save_values_to_config(self):
+
+        new_min_frames = self.min_num_ss_frames_slider.value()
+        new_max_rows = self.max_num_rows_ss_frames_slider.value()
+        new_min_time = float(self.min_time_between_spritesheet_input.text())  # Assuming the input is properly formatted as float
+
+        # Check if values have changed and update if they have
+        if new_min_frames != config.min_num_ss_frames:
+            update_min_frames(new_min_frames)
+
+        if new_max_rows != config.max_num_rows_ss_frames:
+            update_max_frames(new_max_rows)
+
+        if new_min_time != config.min_time_between_spritesheet:
+            update_min_time_between_frames(new_min_time)
+
         config.gif_delay = self.gif_delay_slider.value()
         config.num_cols = self.num_cols_slider.value()
         config.middle_y_pos = self.middle_y_pos_slider.value()
@@ -407,6 +459,11 @@ class SliderOverlay(QWidget):
         config.auto_exposure_time = self.auto_exposure_time_slider.value()
         config.gain = self.gain_slider.value()
         config.jump_threshold = self.jump_threshold_slider.value()
+        config.move_threshold = self.move_threshold_slider.value()
+        config.min_num_ss_frames = self.min_num_ss_frames_slider.value()
+        config.max_num_rows_ss_frames = self.max_num_rows_ss_frames_slider.value()
+        config.min_time_between_spritesheet = self.min_time_between_spritesheet_slider.value()/ 10.0
+
         config.min_face_size = self.min_face_size_slider.value()
         config.zoom_factor = self.cell_zoom_factor_slider.value() / 10.0  # Save the zoom factor
         config.confidence_score = self.confidence_score_slider.value() / 10.0
@@ -440,6 +497,10 @@ class SliderOverlay(QWidget):
             config_file.write(f"mirror = {config.mirror}\n")
             config_file.write(f"demo = {config.demo}\n")  # Write the demo config value
             config_file.write(f"auto_exposure= {config.auto_exposure}\n")
+            config_file.write(f"move_threshold = {config.move_threshold}\n")
+            config_file.write(f"min_num_ss_frames = {config.min_num_ss_frames}\n")
+            config_file.write(f"max_num_rows_ss_frames = {config.max_num_rows_ss_frames}\n")
+            config_file.write(f"min_time_between_spritesheet = {config.min_time_between_spritesheet}\n")
 
         # Emit signal to update the config
         self.config_changed.emit()

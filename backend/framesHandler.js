@@ -1,11 +1,18 @@
-const createSpritesheet = require("./createSpritesheet.js");
+const {createSpritesheet} = require("./createSpritesheet.js");
 
 let frames = [];
 let bboxes = [];
-const maxFrames = 60 * 19; // Set your desired maximum number of frames
-const minFrames = 16;
+let maxFrames = 60 * 19; // Set your desired maximum number of frames
+let minFrames = 16;
 let spritesheetCreated = false;
 
+function setMaxFrames(newMax) {
+    maxFrames = newMax;
+}
+
+function setMinFrames(newMin) {
+    minFrames = newMin;
+}
 async function addFrame(frame, bbox) {
     if (!frame || !bbox) {
         throw new Error('Frame and bbox are required');
@@ -94,5 +101,7 @@ function dataUrlToBuffer(dataUrl) {
 module.exports = {
     addFrame,
     noFaceDetected,
-    clearFrames
+    clearFrames,
+    setMaxFrames,
+    setMinFrames
 };

@@ -7,17 +7,19 @@ const DriveCapacity = require('./driveCapacity');
 const checkDriveCapacity = false; // Set this to disable the drive capacity check
 const frameWidth = 200; // Set frame width as a constant, used for both width and height
 const spritesheetWidth = frameWidth * 19 + 20; // Calculate spritesheet width based on frame width
-const maxSpritesheetHeight = 10000;
 const framesPerRow = 19;
-const MIN_TIME_BETWEEN_SPRITESHEETS = 1000*60; // 2 minutes in milliseconds
+let min_time_between_spriteshdeets = 1000*60; // 2 minutes in milliseconds
 
+function setTimeBetweenSpritesheets(newValue) {
+    min_time_between_spriteshdeets = newValue;
+}
 let lastSpritesheetCreationTime = 0;
 
 async function createSpritesheet(frames) {
     const currentTime = Date.now();
 
-    if (currentTime - lastSpritesheetCreationTime < MIN_TIME_BETWEEN_SPRITESHEETS) {
-        console.log(`Spritesheet creation skipped: must wait ${MIN_TIME_BETWEEN_SPRITESHEETS} minutes between creations.`);
+    if (currentTime - lastSpritesheetCreationTime < min_time_between_spriteshdeets) {
+        console.log(`Spritesheet creation skipped: must wait ${min_time_between_spriteshdeets / (1000*16)} minutes between creations.`);
         return null;
     }
 
@@ -34,7 +36,7 @@ async function createSpritesheet(frames) {
 
     console.log(`Number of frames to process: ${frames.length}`);
     const rows = Math.ceil(frames.length / framesPerRow);
-    const spritesheetHeight = Math.min(rows * frameWidth, maxSpritesheetHeight); // Use frameWidth for height calculation
+    const spritesheetHeight = rows * frameWidth // Use frameWidth for height calculation
 
     let spritesheet = sharp({
         create: {
@@ -119,4 +121,4 @@ async function saveSpritesheet(spritesheet, totalFrames) {
     return null;
 }
 
-module.exports = createSpritesheet;
+module.exports = {createSpritesheet, setTimeBetweenSpritesheets};

@@ -175,3 +175,52 @@ def set_camera_control(control_name, value):
     except Exception as e:
         logger.exception(f"Error sending set-camera-control request to server: {e}")
         return False
+
+
+def update_min_frames(min_frames):
+    """Sends a request to update the minimum number of frames setting."""
+    url = f"{BASE_SERVER_URL}/update-setting"
+    payload = {'setting': 'minFrames', 'value': min_frames}
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            logger.info("Minimum frames updated successfully")
+            return True
+        else:
+            logger.error(f"Failed to update minimum frames: {response.status_code}, {response.text}")
+            return False
+    except Exception as e:
+        logger.exception(f"Error updating minimum frames to server: {e}")
+        return False
+
+def update_max_frames(max_frames):
+    """Sends a request to update the maximum number of frames setting."""
+    url = f"{BASE_SERVER_URL}/update-setting"
+    payload = {'setting': 'maxFrames', 'value': max_frames}
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            logger.info("Maximum frames updated successfully")
+            return True
+        else:
+            logger.error(f"Failed to update maximum frames: {response.status_code}, {response.text}")
+            return False
+    except Exception as e:
+        logger.exception(f"Error updating maximum frames to server: {e}")
+        return False
+
+def update_min_time_between_frames(min_time):
+    """Sends a request to update the minimum time between frames setting."""
+    url = f"{BASE_SERVER_URL}/update-setting"
+    payload = {'setting': 'minTimeBetweenFrames', 'value': min_time}
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            logger.info("Minimum time between frames updated successfully")
+            return True
+        else:
+            logger.error(f"Failed to update minimum time between frames: {response.status_code}, {response.text}")
+            return False
+    except Exception as e:
+        logger.exception(f"Error updating minimum time between frames to server: {e}")
+        return False
