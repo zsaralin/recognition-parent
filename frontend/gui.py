@@ -3,18 +3,22 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
 import config
 from backend_communicator import set_camera_control, update_max_frames, update_min_frames, update_min_time_between_frames
+from PyQt5.QtWidgets import QToolButton
+from PyQt5.QtGui import QIcon
 
 class SliderOverlay(QWidget):
     config_changed = pyqtSignal()  # Signal to notify when config changes
     font_size_changed = pyqtSignal(float)  # Signal to notify when font size changes
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, Qt.Tool | Qt.FramelessWindowHint)
         self.initUI()
-        self.setFocusPolicy(Qt.StrongFocus)  # Ensure the widget can receive key events
+        # self.setFocusPolicy(Qt.StrongFocus)  # Ensure the widget can receive key events
         self.setFixedSize(500, 600)  # Set a fixed size for the window with extra width and height
         self.move(10, 10)  # Move the window to the top-left corner of the screen
-
+        self.is_visible = True  # Variable to track if the window is shown
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowFlag(Qt.WindowStaysOnTopHint)
         # Set the entire widget's background color to white
         self.setStyleSheet("background-color: lightpink;")
 
@@ -67,9 +71,13 @@ class SliderOverlay(QWidget):
             return layout
 
         # Creating the sliders and input fields as before
-        self.gif_delay_slider = self.create_slider(1, 100, config.gif_delay)
-        self.gif_delay_input = self.create_input(1, 100, is_double=False)
-        self.gif_delay_input.setText(str(config.gif_delay))
+        self.min_gif_delay_slider = self.create_slider(1, 100, config.min_gif_delay)
+        self.min_gif_delay_input = self.create_input(1, 100, is_double=False)
+        self.min_gif_delay_input.setText(str(config.min_gif_delay))
+
+        self.max_gif_delay_slider = self.create_slider(1, 200, config.max_gif_delay)
+        self.max_gif_delay_input = self.create_input(1, 200, is_double=False)
+        self.max_gif_delay_input.setText(str(config.max_gif_delay))
 
         self.num_cols_slider = self.create_slider(11, 41, config.num_cols, step=2)
         self.num_cols_input = self.create_input(11, 41, is_double=False, only_odd=True)
@@ -139,7 +147,7 @@ class SliderOverlay(QWidget):
         self.max_num_rows_ss_frames_input = self.create_input(10, 20, is_double=False)
         self.max_num_rows_ss_frames_input.setText(str(config.max_num_rows_ss_frames))
 
-        self.min_time_between_spritesheet_slider = self.create_double_slider(0, 4, config.min_time_between_spritesheet, step = .1)
+        self.min_time_between_spritesheet_slider = self.create_double_slider(0, 4, config.min_time_between_spritesheet, step=0.1)
         self.min_time_between_spritesheet_input = self.create_input(0, 4, is_double=True)
         self.min_time_between_spritesheet_input.setText(str(config.min_time_between_spritesheet))
 
@@ -186,7 +194,8 @@ class SliderOverlay(QWidget):
         self.auto_exposure_checkbox.stateChanged.connect(self.toggle_auto_exposure)
 
         # Adding the groups to the main layout
-        main_layout.addLayout(create_slider_group('GIF Delay', self.gif_delay_slider, self.gif_delay_input))
+        main_layout.addLayout(create_slider_group('Min GIF Delay', self.min_gif_delay_slider, self.min_gif_delay_input))
+        main_layout.addLayout(create_slider_group('Max GIF Delay', self.max_gif_delay_slider, self.max_gif_delay_input))
         main_layout.addLayout(create_slider_group('Num Cols', self.num_cols_slider, self.num_cols_input))
         main_layout.addLayout(create_slider_group('Middle Y Pos', self.middle_y_pos_slider, self.middle_y_pos_input))
         main_layout.addLayout(create_slider_group('Update Count', self.update_count_slider, self.update_count_input))
@@ -315,8 +324,10 @@ class SliderOverlay(QWidget):
                 value += 1
                 sender.setValue(value)
             self.num_cols_input.setText(str(value))
-        elif sender == self.gif_delay_slider:
-            self.gif_delay_input.setText(str(sender.value()))
+        elif sender == self.min_gif_delay_slider:
+            self.min_gif_delay_input.setText(str(sender.value()))
+        elif sender == self.max_gif_delay_slider:
+            self.max_gif_delay_input.setText(str(sender.value()))
         elif sender == self.update_count_slider:
             self.update_count_input.setText(str(sender.value()))
         elif sender == self.update_delay_slider:
@@ -373,8 +384,10 @@ class SliderOverlay(QWidget):
             if value % 2 == 0:
                 value += 1 if value < sender.validator().top() else -1
             self.num_cols_slider.setValue(int(value))
-        elif sender == self.gif_delay_input:
-            self.gif_delay_slider.setValue(int(value))
+        elif sender == self.min_gif_delay_input:
+            self.min_gif_delay_slider.setValue(int(value))
+        elif sender == self.max_gif_delay_input:
+            self.max_gif_delay_slider.setValue(int(value))
         elif sender == self.update_count_input:
             self.update_count_slider.setValue(int(value))
         elif sender == self.update_delay_input:
@@ -420,7 +433,7 @@ class SliderOverlay(QWidget):
         elif sender == self.max_num_rows_ss_frames_input:
             self.max_num_rows_ss_frames_slider.setValue(int(value))
         elif sender == self.min_time_between_spritesheet_input:
-            self.min_time_between_spritesheet_slider.setValue(int(value* 10))
+            self.min_time_between_spritesheet_slider.setValue(int(value * 10))
         self.config_changed.emit()
 
     def toggle_fps_display(self, state):
@@ -442,7 +455,8 @@ class SliderOverlay(QWidget):
         if new_min_time != config.min_time_between_spritesheet:
             update_min_time_between_frames(new_min_time)
 
-        config.gif_delay = self.gif_delay_slider.value()
+        config.min_gif_delay = self.min_gif_delay_slider.value()
+        config.max_gif_delay = self.max_gif_delay_slider.value()
         config.num_cols = self.num_cols_slider.value()
         config.middle_y_pos = self.middle_y_pos_slider.value()
         config.update_count = self.update_count_slider.value()
@@ -462,7 +476,7 @@ class SliderOverlay(QWidget):
         config.move_threshold = self.move_threshold_slider.value()
         config.min_num_ss_frames = self.min_num_ss_frames_slider.value()
         config.max_num_rows_ss_frames = self.max_num_rows_ss_frames_slider.value()
-        config.min_time_between_spritesheet = self.min_time_between_spritesheet_slider.value()/ 10.0
+        config.min_time_between_spritesheet = self.min_time_between_spritesheet_slider.value() / 10.0
 
         config.min_face_size = self.min_face_size_slider.value()
         config.zoom_factor = self.cell_zoom_factor_slider.value() / 10.0  # Save the zoom factor
@@ -475,7 +489,8 @@ class SliderOverlay(QWidget):
 
         # Save the updated config to file
         with open('config.py', 'w') as config_file:
-            config_file.write(f"gif_delay = {config.gif_delay}\n")
+            config_file.write(f"min_gif_delay = {config.min_gif_delay}\n")
+            config_file.write(f"max_gif_delay = {config.max_gif_delay}\n")
             config_file.write(f"num_cols = {config.num_cols}\n")
             config_file.write(f"middle_y_pos = {config.middle_y_pos}\n")
             config_file.write(f"update_count = {config.update_count}\n")
@@ -506,7 +521,6 @@ class SliderOverlay(QWidget):
         self.config_changed.emit()
 
     def keyPressEvent(self, event):
-        print(f"Key pressed: {event.key()}")  # Print the key code for debugging
-
-        if event.key() == Qt.Key_G or event.key() == Qt.Key_Escape:
-            self.close()
+        if self.parent():
+            self.parent().keyPressEvent(event)
+        super().keyPressEvent(event)

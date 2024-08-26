@@ -26,7 +26,6 @@ class VideoProcessor(QThread):
         self.face_detector = MediaPipeFaceDetection(self.new_faces)
         self.cap = cv2.VideoCapture(self.camera_index)
         self.callback = callback
-        self.bbox_multiplier = config.bbox_multiplier
 
         if not self.cap.isOpened():
             logger.error("Failed to open camera.")
@@ -138,8 +137,8 @@ class VideoProcessor(QThread):
                 x, y, w, h = bbox
                 cx, cy = x + w // 2, y + h // 2
 
-                w = int(w * self.bbox_multiplier)
-                h = int(h * self.bbox_multiplier)
+                w = int(w * config.bbox_multiplier)
+                h = int(h * config.bbox_multiplier)
 
                 filtered_cx = self.euro_filter_cx.filter(cx, current_time)
                 filtered_cy = self.euro_filter_cy.filter(cy, current_time)
@@ -263,11 +262,6 @@ class VideoProcessor(QThread):
             self.terminate()
 
         self.cap.release()
-
-    def update_config(self):
-        self.bbox_multiplier = config.bbox_multiplier
-        self.update_text_overlay()  # Ensure the text overlay is updated when config changes
-
     def set_exposure(self, exposure_value):
         if self.cap.isOpened():
             self.cap.set(cv2.CAP_PROP_GAIN, exposure_value)
