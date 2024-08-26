@@ -158,11 +158,11 @@ class SpriteManager(QObject):
         return QPixmap.fromImage(resized_qimage)
 
     def preprocess_overlay_text(self, overlay_text):
-        scale_factor = 4  # Increase to make the text sharper
+        scale_factor = 50  # Increase to make the text sharper
         blank_image = np.zeros((int(self.square_size * 3 * scale_factor), int(self.square_size * 3 * scale_factor), 4), dtype=np.uint8)
 
         # Adjust text rendering to match the scale factor
-        overlay_image = add_text_overlay(blank_image, text=overlay_text, offset_from_bottom=12, scale_factor=4)
+        overlay_image = add_text_overlay(blank_image, text=overlay_text, offset_from_bottom=12, scale_factor=scale_factor)
 
         # Scale down the image to the original size
         overlay_image = cv2.resize(overlay_image, (int(self.square_size * 3), int(self.square_size * 3)), interpolation=cv2.INTER_AREA)

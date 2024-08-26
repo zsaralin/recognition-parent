@@ -82,8 +82,19 @@ class VideoProcessor(QThread):
 
     def create_text_overlay(self, width, height):
         """Create the text overlay and resize it to the expected frame size."""
-        overlay = np.zeros((height, width, 4), dtype=np.uint8)  # Using a 4-channel image for RGBA
-        overlay_with_text = add_text_overlay(overlay)
+        scale_factor = 50  # Increase this to improve text sharpness
+        high_res_width = width * scale_factor
+        high_res_height = height * scale_factor
+
+        # Create a high-resolution blank image
+        overlay = np.zeros((high_res_height, high_res_width, 4), dtype=np.uint8)  # Using a 4-channel image for RGBA
+
+        # Add text overlay at high resolution
+        overlay_with_text = add_text_overlay(overlay, scale_factor=scale_factor)
+
+        # Resize the overlay back to the original size
+        overlay_with_text = cv2.resize(overlay_with_text, (width, height), interpolation=cv2.INTER_LANCZOS4)
+
         return overlay_with_text
 
     def update_text_overlay(self):
