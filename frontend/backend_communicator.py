@@ -54,7 +54,6 @@ def send_snapshot_to_server(frame, callback):
             result = response.json()
             most_similar = result.get('mostSimilar')
             least_similar = result.get('leastSimilar')
-            print(most_similar[0])
             if most_similar is None or least_similar is None:
                 logger.error("Received None for most_similar or least_similar")
                 awaiting_response = False
@@ -224,3 +223,30 @@ def update_min_time_between_frames(min_time):
     except Exception as e:
         logger.exception(f"Error updating minimum time between frames to server: {e}")
         return False
+
+
+def get_random_images(num_vids):
+    """
+    Sends a request to the backend to get a random set of images based on the provided number of videos.
+
+    :param num_vids: Number of video thumbnails requested.
+    :return: A tuple (most_similar, least_similar, success) where 'most_similar' and 'least_similar'
+             are lists of image data, and 'success' is a boolean indicating if the fetch was successful.
+    """
+    url = f"{BASE_SERVER_URL}/get-random-matches"
+    payload = {'numVids': num_vids}
+
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            data = response.json()
+            most_similar = data.get('mostSimilar')
+            least_similar = data.get('leastSimilar')
+            logger.info("Random images fetched successfully")
+            return most_similar, least_similar, True
+        else:
+            logger.error(f"Failed to fetch random images: {response.status_code}, {response.text}")
+            return None, None, False
+    except Exception as e:
+        logger.exception(f"Error fetching random images from server: {e}")
+        return None, None, False

@@ -83,7 +83,6 @@ class SpriteManager(QObject):
         self.sprite_arranger_running = True
         self.most_similar = most_similar
         self.least_similar = least_similar
-
         self.sprite_arranger = SpriteArranger(self.middle_y_pos)
         self.sprite_arranger.set_data(most_similar, least_similar)
         self.sprite_arranger.sprites_arranged.connect(self.handle_all_sprites_loaded)
@@ -97,7 +96,6 @@ class SpriteManager(QObject):
         self.least_similar_indices = least_similar_indices
         self.current_most_index = 0
         self.current_least_index = 0
-
         self.preprocess_high_res_sprites()
         self.update_next_sprites()
 

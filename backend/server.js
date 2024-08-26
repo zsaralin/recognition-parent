@@ -9,6 +9,7 @@ const {preloadImages} = require('./preloadImages.js')
 const {addFrame, clearFrames, noFaceDetected, setMaxFrames, setMinFrames} = require("./framesHandler.js");
 const {setCameraControl} = require("./uvcControl");
 const {setTimeBetweenSpritesheets,} = require("./createSpritesheet.js");
+const {getRandomImages} = require("./randomImages.js");
 
 const app = express();
 app.use(cors());
@@ -55,6 +56,28 @@ app.post('/get-matches', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+app.post('/get-random-matches', async (req, res) => {
+    try {
+        const { numVids } = req.body;
+
+        if (!numVids) {
+            return res.status(400).json({ error: 'Number of videos in grid not provided' });
+        }
+
+        // Assuming images/videos are stored in 'public/database'
+        const databaseDir = path.join(__dirname, 'public', 'database');
+
+        // Get random files from the directory
+        const { mostSimilar, leastSimilar } = await getRandomImages(numVids);
+
+        res.json({ mostSimilar, leastSimilar });
+    } catch (error) {
+        console.error('Unexpected error fetching random matches:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // New route to preload images
 app.get('/preload-images', async (req, res) => {
     try {

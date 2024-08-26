@@ -5,7 +5,7 @@ import numpy as np
 from PyQt5.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget, QShortcut
 from PyQt5.QtGui import QKeySequence, QPixmap, QImage, QPainter
 from PyQt5.QtCore import Qt, QTimer, QRectF, QRect
-
+from backend_communicator import get_random_images
 import config
 from gui import SliderOverlay
 from text_overlay import update_font_size
@@ -51,6 +51,17 @@ class ImageApp(QWidget):
         self.overlay.font_size_changed.connect(self.sprite_manager.update_static_overlays)
         # Set positions for cells only once
         self.set_cell_positions()
+        self.load_random_images()
+
+    def load_random_images(self):
+        # Assume `get_random_images` is implemented and fetches `numVids` random images
+        num_vids = self.num_rows * config.num_cols  # Same as the number of grid cells
+        most_similar, least_similar, success = get_random_images(num_vids)
+        if success:
+            # Simulate loading of initial random images
+            self.sprite_manager.load_sprites(most_similar, least_similar)
+        else:
+            logger.error("Failed to fetch initial random images.")
 
     def initUI(self):
         self.layout = QVBoxLayout()
@@ -164,7 +175,6 @@ class ImageApp(QWidget):
                 cell.clear()  # Clear the cell if no sprite is available
 
     def load_sprites(self, most_similar, least_similar):
-        print('holaaaaa')
         self.sprite_manager.load_sprites(most_similar, least_similar)
 
     def keyPressEvent(self, event):
