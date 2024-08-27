@@ -13,9 +13,8 @@ crontab -r
 
 # echo new cron into cron file
 #     mm hh * * *
-
 # edit this line to match the shutdown time above in line 4
-echo "@reboot sh /Users/admin/desktop/recognition-2024-1/frontend/startRecognition.sh" >> mycron
+echo "@reboot sh /Users/admin/desktop/recognition/recognition-parent/frontend/startRecognition.sh > /Users/admin/desktop/recognition/recognition-parent/frontend/output.txt 2>&1" >> mycron
 
 # install new cron file
 crontab mycron

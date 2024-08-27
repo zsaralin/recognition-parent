@@ -1,9 +1,8 @@
 from setuptools import setup
 
-APP = ['main.py']
+APP = ['recognition.py']
 OPTIONS = {
-    'argv_emulation': True,
-    'packages': ['PyQt5', 'cv2', 'requests', 'mediapipe', 'httpx'],
+    'packages': ['PyQt5', 'cv2', 'requests', 'mediapipe', 'httpx', 'psutil'],
     'plist': {
         'NSCameraUsageDescription': 'This app requires access to the camera.'
     },

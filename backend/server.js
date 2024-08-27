@@ -7,7 +7,7 @@ const { findSimilarImages } = require("./faceMatching.js");
 const multer = require('multer');
 const {preloadImages} = require('./preloadImages.js')
 const {addFrame, clearFrames, noFaceDetected, setMaxFrames, setMinFrames} = require("./framesHandler.js");
-const {setCameraControl} = require("./uvcControl");
+// const {setCameraControl} = require("./uvcControl");
 const {setTimeBetweenSpritesheets,} = require("./createSpritesheet.js");
 const {getRandomImages} = require("./randomImages.js");
 
@@ -132,29 +132,29 @@ app.post('/set-camera-control', (req, res) => {
 });
 
 // Single API endpoint to update various settings directly in the route
-app.post('/update-setting', (req, res) => {
-    const { setting, value } = req.body;
+// app.post('/update-setting', (req, res) => {
+    // const { setting, value } = req.body;
 
-    try {
-        // Update the setting based on key-value pair directly within the route
-        switch (setting) {
-            case 'maxFrames':
-                setMaxFrames(value*19);
-                break;
-            case 'minFrames':
-                setMinFrames(value);
-                break;
-            case 'minTimeBetweenFrames':
-                setTimeBetweenSpritesheets(value* 60 * 1000);
-                break;
-            default:
-                throw new Error(`Setting ${setting} is not recognized`);
-        }
+    // try {
+    //     // Update the setting based on key-value pair directly within the route
+    //     switch (setting) {
+    //         case 'maxFrames':
+    //             setMaxFrames(value*19);
+    //             break;
+    //         case 'minFrames':
+    //             setMinFrames(value);
+    //             break;
+    //         case 'minTimeBetweenFrames':
+    //             setTimeBetweenSpritesheets(value* 60 * 1000);
+    //             break;
+    //         default:
+    //             throw new Error(`Setting ${setting} is not recognized`);
+//         }
 
-        // Send a success response
-        res.json({ success: true, message: `${setting} updated successfully to ${value}` });
-    } catch (error) {
-        // Handle any errors that occur during the setting update
-        res.status(400).json({ success: false, message: error.message });
-    }
-});
+//         // Send a success response
+//         res.json({ success: true, message: `${setting} updated successfully to ${value}` });
+//     } catch (error) {
+//         // Handle any errors that occur during the setting update
+//         res.status(400).json({ success: false, message: error.message });
+//     }
+// });

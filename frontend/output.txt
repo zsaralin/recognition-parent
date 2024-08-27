@@ -1,0 +1,9 @@
+objc[593]: Class GNotificationCenterDelegate is implemented in both /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.42.dylib (0x10f14da28) and /opt/homebrew/Cellar/glib/2.80.4/lib/libgio-2.0.0.dylib (0x1099986b0). One of the two will be used. Which one is undefined.
+Server is running on http://localhost:3000
+504
+Setting TensorFlow backend...
+TensorFlow backend is ready.
+Loading models from disk...
+Models loaded successfully.
+No face detected with input size: 32
+Face detected with input size: 64

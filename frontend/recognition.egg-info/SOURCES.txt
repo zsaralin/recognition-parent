@@ -1,0 +1,5 @@
+setup.py
+recognition.egg-info/PKG-INFO
+recognition.egg-info/SOURCES.txt
+recognition.egg-info/dependency_links.txt
+recognition.egg-info/top_level.txt
