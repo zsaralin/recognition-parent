@@ -42,19 +42,26 @@ class SpriteArranger(QObject):
         center_row = (self.num_rows // 2) + self.middle_row_offset
         center_col = self.num_cols // 2
 
-        # Define ranges for the central exclusion area
+        # Check config.version to determine whether to use the central exclusion area
         middle_col_index = center_col
 
-        mid_block_start_col = center_col - 4
-        mid_block_end_col = center_col + 4
-        mid_block_start_row = center_row - 1
-        mid_block_end_row = center_row + 1
+        if config.version == 0:
+            mid_block_start_col = center_col - 4
+            mid_block_end_col = center_col + 4
+            mid_block_start_row = center_row - 1
+            mid_block_end_row = center_row + 1
 
-        # Generate grid positions, excluding middle column and central block
-        positions = [
-            (r, c) for r in range(self.num_rows) for c in range(self.num_cols)
-            if c != middle_col_index and not (mid_block_start_col <= c <= mid_block_end_col and mid_block_start_row <= r <= mid_block_end_row)
-        ]
+            # Generate grid positions, excluding middle column and central block
+            positions = [
+                (r, c) for r in range(self.num_rows) for c in range(self.num_cols)
+                if c != middle_col_index and not (mid_block_start_col <= c <= mid_block_end_col and mid_block_start_row <= r <= mid_block_end_row)
+            ]
+        else:
+            # Generate grid positions, excluding only the middle column
+            positions = [
+                (r, c) for r in range(self.num_rows) for c in range(self.num_cols)
+                if c != middle_col_index
+            ]
 
         logger.info('Grid positions generated')
 
@@ -63,14 +70,15 @@ class SpriteArranger(QObject):
 
         logger.info('Grid positions sorted')
 
-        # Arrange the central sprites
-        if len(self.least_similar) > 1:
-            self.arrange_sprite(self.least_similar[1], center_row * self.num_cols + (center_col - 4), sprites, self.least_similar_indices, 'large')
+        # Arrange the central sprites if config.version is True
+        if config.version == 0:
+            if len(self.least_similar) > 1:
+                self.arrange_sprite(self.least_similar[1], center_row * self.num_cols + (center_col - 4), sprites, self.least_similar_indices, 'large')
 
-        if len(self.most_similar) > 1:
-            self.arrange_sprite(self.most_similar[1], center_row * self.num_cols + (center_col + 2), sprites, self.most_similar_indices, 'large')
+            if len(self.most_similar) > 1:
+                self.arrange_sprite(self.most_similar[1], center_row * self.num_cols + (center_col + 2), sprites, self.most_similar_indices, 'large')
 
-        logger.info('Central sprites arranged')
+            logger.info('Central sprites arranged')
 
         least_similar_index = 2  # Start from index 2
         most_similar_index = 2  # Start from index 2

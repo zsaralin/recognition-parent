@@ -34,19 +34,21 @@ class SpriteManager(QObject):
         self.update_timer.timeout.connect(self.update_sprites)
         self.update_timer.start(config.min_gif_delay)
 
-        self.most_similar_timer = QTimer()
-        self.most_similar_timer.timeout.connect(self.update_most_similar)
-        self.most_similar_timer.start(config.min_gif_delay)
+        if config.version == 0:
+            self.most_similar_timer = QTimer()
+            self.most_similar_timer.timeout.connect(self.update_most_similar)
+            self.most_similar_timer.start(config.min_gif_delay)
 
-        self.least_similar_timer = QTimer()
-        self.least_similar_timer.timeout.connect(self.update_least_similar)
-        self.least_similar_timer.start(config.min_gif_delay)
+            self.least_similar_timer = QTimer()
+            self.least_similar_timer.timeout.connect(self.update_least_similar)
+            self.least_similar_timer.start(config.min_gif_delay)
 
         # Initialize the static overlays
         self.static_most_similar_overlay = None
         self.static_least_similar_overlay = None
         self.black_overlay = None
-        self.update_static_overlays()
+        if config.version == 0:
+            self.update_static_overlays()
 
         self.previous_most = None
         self.previous_least = None
@@ -100,6 +102,7 @@ class SpriteManager(QObject):
         self.sprite_arranger_running = False
 
     def preprocess_high_res_sprites(self):
+
         if self.high_res_most_similar_sprites:
             self.previous_most = self.high_res_most_similar_sprites[-1]
         if self.high_res_least_similar_sprites:
@@ -107,25 +110,25 @@ class SpriteManager(QObject):
 
         self.high_res_most_similar_sprites.clear()
         self.high_res_least_similar_sprites.clear()
+        if config.version == 0 :
+            if self.most_similar_indices:
+                most_similar_index = self.most_similar_indices[0]
+                if most_similar_index < len(self.sprites) and self.sprites[most_similar_index]['images']:
+                    for sprite in self.sprites[most_similar_index]['images']:
+                        high_res_sprite = self.preprocess_sprite(sprite)
+                        high_res_sprite = self.apply_static_overlay(high_res_sprite, self.static_most_similar_overlay)
+                        self.high_res_most_similar_sprites.append(high_res_sprite)
 
-        if self.most_similar_indices:
-            most_similar_index = self.most_similar_indices[0]
-            if most_similar_index < len(self.sprites) and self.sprites[most_similar_index]['images']:
-                for sprite in self.sprites[most_similar_index]['images']:
-                    high_res_sprite = self.preprocess_sprite(sprite)
-                    high_res_sprite = self.apply_static_overlay(high_res_sprite, self.static_most_similar_overlay)
-                    self.high_res_most_similar_sprites.append(high_res_sprite)
+            if self.least_similar_indices:
+                least_similar_index = self.least_similar_indices[0]
+                if least_similar_index < len(self.sprites) and self.sprites[least_similar_index]['images']:
+                    for sprite in self.sprites[least_similar_index]['images']:
+                        high_res_sprite = self.preprocess_sprite(sprite)
+                        high_res_sprite = self.apply_static_overlay(high_res_sprite, self.static_least_similar_overlay)
+                        self.high_res_least_similar_sprites.append(high_res_sprite)
 
-        if self.least_similar_indices:
-            least_similar_index = self.least_similar_indices[0]
-            if least_similar_index < len(self.sprites) and self.sprites[least_similar_index]['images']:
-                for sprite in self.sprites[least_similar_index]['images']:
-                    high_res_sprite = self.preprocess_sprite(sprite)
-                    high_res_sprite = self.apply_static_overlay(high_res_sprite, self.static_least_similar_overlay)
-                    self.high_res_least_similar_sprites.append(high_res_sprite)
-
-        self.most_similar_sprite_index = 0
-        self.least_similar_sprite_index = 0
+            self.most_similar_sprite_index = 0
+            self.least_similar_sprite_index = 0
 
     def qpixmap_to_cv2(self, qpixmap):
         qimage = qpixmap.toImage()

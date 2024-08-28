@@ -44,8 +44,9 @@ class ImageApp(QWidget):
 
         self.sprite_manager = SpriteManager(len(self.grid_cells), self.square_size, self.middle_y_pos)
         self.sprite_manager.sprites_updated.connect(self.update_sprite_cells)
-        self.sprite_manager.most_similar_updated.connect(lambda pixmap: self.most_similar_cell.setPixmap(pixmap))
-        self.sprite_manager.least_similar_updated.connect(lambda pixmap: self.least_similar_cell.setPixmap(pixmap))
+        if config.version == 0:
+            self.sprite_manager.most_similar_updated.connect(lambda pixmap: self.most_similar_cell.setPixmap(pixmap))
+            self.sprite_manager.least_similar_updated.connect(lambda pixmap: self.least_similar_cell.setPixmap(pixmap))
 
         self.overlay.font_size_changed.connect(self.video_processor.update_text_overlay)
         self.overlay.font_size_changed.connect(self.sprite_manager.update_static_overlays)
@@ -110,8 +111,12 @@ class ImageApp(QWidget):
         self.shortcut.activated.connect(self.close_app)
 
     def create_center_cells(self):
-        video_cell_width = int(self.square_size * 3)
-        video_cell_height = int(self.square_size * 3)
+        if config.version == 0:
+            video_cell_width = int(self.square_size * 3)
+            video_cell_height = int(self.square_size * 3)
+        else:
+            video_cell_width = int(self.square_size)
+            video_cell_height = int(self.square_size)
 
         self.video_cell = QLabel(self)
         self.video_cell.setFixedSize(video_cell_width, video_cell_height)
@@ -119,24 +124,25 @@ class ImageApp(QWidget):
         self.video_cell.setStyleSheet("border: none; margin: 0;")
         self.grid_cells.append(self.video_cell)
 
-        self.least_similar_cell = QLabel(self)
-        self.least_similar_cell.setFixedSize(video_cell_width, video_cell_height)
-        self.least_similar_cell.setAlignment(Qt.AlignCenter)
-        self.least_similar_cell.setStyleSheet("border: none; margin: 0;")
-        self.grid_cells.append(self.least_similar_cell)
+        if config.version == 0:
+            self.least_similar_cell = QLabel(self)
+            self.least_similar_cell.setFixedSize(video_cell_width, video_cell_height)
+            self.least_similar_cell.setAlignment(Qt.AlignCenter)
+            self.least_similar_cell.setStyleSheet("border: none; margin: 0;")
+            self.grid_cells.append(self.least_similar_cell)
 
-        self.most_similar_cell = QLabel(self)
-        self.most_similar_cell.setFixedSize(video_cell_width, video_cell_height)
-        self.most_similar_cell.setAlignment(Qt.AlignCenter)
-        self.most_similar_cell.setStyleSheet("border: none; margin: 0;")
-        self.grid_cells.append(self.most_similar_cell)
+            self.most_similar_cell = QLabel(self)
+            self.most_similar_cell.setFixedSize(video_cell_width, video_cell_height)
+            self.most_similar_cell.setAlignment(Qt.AlignCenter)
+            self.most_similar_cell.setStyleSheet("border: none; margin: 0;")
+            self.grid_cells.append(self.most_similar_cell)
 
     def set_cell_positions(self):
         vertical_offset = (self.height() - (self.num_rows * self.square_size)) // 2
         horizontal_offset = (self.width() - (self.num_cols * self.square_size)) // 2
 
         for index, cell in enumerate(self.grid_cells):
-            if cell in [self.video_cell, self.least_similar_cell, self.most_similar_cell]:
+            if config.version == 0 and cell in [self.video_cell, getattr(self, 'least_similar_cell', None), getattr(self, 'most_similar_cell', None)]:
                 continue
             row = index // self.num_cols
             col = index % self.num_cols
@@ -147,21 +153,30 @@ class ImageApp(QWidget):
         center_row = self.num_rows // 2 + self.middle_y_pos
         center_col = self.num_cols // 2
 
-        self.video_cell.move(
-            int((center_col - 1) * self.square_size + horizontal_offset),
-            int((center_row - 1) * self.square_size + vertical_offset)
-        )
 
-        self.least_similar_cell.move(
-            int((center_col - 4) * self.square_size + horizontal_offset),
-            int((center_row - 1) * self.square_size + vertical_offset)
-        )
+        if config.version == 0:
+            self.video_cell.move(
+                int((center_col - 1) * self.square_size + horizontal_offset),
+                int((center_row - 1) * self.square_size + vertical_offset)
+            )
+            self.least_similar_cell.move(
+                int((center_col - 4) * self.square_size + horizontal_offset),
+                int((center_row - 1) * self.square_size + vertical_offset)
+            )
 
-        self.most_similar_cell.move(
-            int((center_col + 2) * self.square_size + horizontal_offset),
-            int((center_row - 1) * self.square_size + vertical_offset)
-        )
+            self.most_similar_cell.move(
+                int((center_col + 2) * self.square_size + horizontal_offset),
+                int((center_row - 1) * self.square_size + vertical_offset)
+            )
+        else:
+            center_row = (self.num_rows // 2) + self.middle_y_pos
+            center_col = self.num_cols // 2
 
+            # Center the video cell
+            self.video_cell.move(
+                int((center_col - (self.video_cell.width() // self.square_size) // 2) * self.square_size + horizontal_offset),
+                int((center_row - (self.video_cell.height() // self.square_size) // 2) * self.square_size + vertical_offset)
+            )
     def closeEvent(self, event):
         self.new_faces.stop_all_threads()
         event.accept()
