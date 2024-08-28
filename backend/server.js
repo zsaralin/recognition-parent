@@ -7,7 +7,7 @@ const { findSimilarImages } = require("./faceMatching.js");
 const multer = require('multer');
 const {preloadImages} = require('./preloadImages.js')
 const {addFrame, clearFrames, noFaceDetected, setMaxFrames, setMinFrames} = require("./framesHandler.js");
-// const {setCameraControl} = require("./uvcControl");
+const {setCameraControl} = require("./uvcControl");
 const {setTimeBetweenSpritesheets,} = require("./createSpritesheet.js");
 const {getRandomImages} = require("./randomImages.js");
 

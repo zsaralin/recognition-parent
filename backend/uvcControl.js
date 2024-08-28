@@ -1,12 +1,11 @@
 const UVCControl = require('uvc-control');
 
-function setCameraControl(vendorId, productId, controlName, value, callback) {
-    // Initialize the camera
-    let camera = new UVCControl(vendorId, productId, {
-        processingUnitId: 0x02,
-        camNum: 0,
-    });
+let camera = new UVCControl(0x0BDA, 0x3035, {
+    processingUnitId: 0x02,
+    camNum: 0,
+});
 
+function setCameraControl(controlName, value, callback) {
     function setControl(name, val, cb) {
         camera.set(name, val, function(err) {
             if (err) {
@@ -16,7 +15,6 @@ function setCameraControl(vendorId, productId, controlName, value, callback) {
         });
     }
 
-    // Setting the control based on the name
     if (controlName === 'absoluteExposureTime') {
         // Set autoExposureMode to 1 (manual) before setting absoluteExposureTime
         setControl('autoExposureMode', 1, function(err) {
@@ -24,29 +22,11 @@ function setCameraControl(vendorId, productId, controlName, value, callback) {
                 return callback(err);
             }
             // Now set absoluteExposureTime
-            setControl(controlName, value, function(err) {
-                if (err) {
-                    return callback(err);
-                }
-                releaseCamera();
-                if (callback) callback(null);
-            });
+            setControl(controlName, value, callback);
         });
     } else {
         // Set other controls directly
-        setControl(controlName, value, function(err) {
-            if (err) {
-                return callback(err);
-            }
-            releaseCamera();
-            if (callback) callback(null);
-        });
-    }
-
-    // Release the camera after setting the control
-    function releaseCamera() {
-        camera = null;  // Dereference the camera object
-        console.log("Camera released.");
+        setControl(controlName, value, callback);
     }
 }
 

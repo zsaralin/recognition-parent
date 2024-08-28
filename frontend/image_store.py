@@ -1,10 +1,12 @@
 import os
 import cv2
+import time  # Import time module for sleep function
 from PyQt5.QtGui import QImage, QPixmap, QGuiApplication
 from logger_setup import logger
 import config
 import psutil
 from concurrent.futures import ThreadPoolExecutor
+import shutil
 
 class ImageStore:
     def __init__(self):
@@ -14,79 +16,90 @@ class ImageStore:
         self.base_dir = None
         self.sprite_width = 200
         self.executor = ThreadPoolExecutor(max_workers=2)  # Use threads for parallel processing
+        self.preloaded_folders = set()  # Track preloaded folders
 
-    def preload_images(self, app, base_dir, num_cols=21):
-            self.base_dir = base_dir
-            logger.info('Starting preload images')
+    def preload_images(self, app, base_dir, num_cols=21, memory_threshold=0.95):
+        self.base_dir = base_dir
+        logger.info('Starting preload images')
 
-            # Calculate square_size based on screen dimensions and number of columns
-            screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
-            largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
-            window_width = largest_screen_width // 2 if config.demo else largest_screen_width
-            square_size = window_width // num_cols
+        screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
+        largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
+        window_width = largest_screen_width // 2 if config.demo else largest_screen_width
+        square_size = window_width // num_cols
+        large_square_size = square_size * 3
 
-            # Define a larger size as three times the square size
-            large_square_size = square_size * 3
+        total_images = 0
+        preloaded_count = 0
 
-            total_images = 0
-            preloaded_count = 0
+        # Initialize process variable
+        process = psutil.Process(os.getpid())
 
-            # Get initial memory usage
-            process = psutil.Process(os.getpid())
-            initial_memory = process.memory_info().rss  # in bytes
+        # Count total images
+        for root, _, files in os.walk(base_dir):
+            total_images += len([file for file in files if file.endswith(('.png', '.jpg', '.jpeg'))])
 
-            # Count total images
-            for root, _, files in os.walk(base_dir):
-                total_images += len([file for file in files if file.endswith(('.png', '.jpg', '.jpeg'))])
+        # Preload images
+        for root, dirs, files in os.walk(base_dir):
+            parent_dir = os.path.basename(os.path.dirname(root))
+            for file in files:
+                if file.endswith(('.png', '.jpg', '.jpeg')):
+                    image_path = os.path.join(root, file)
+                    image = cv2.imread(image_path)
+                    if image is not None:
+                        num_images = self.get_num_images_from_filename(file)
+                        sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
+                        sub_images_with_reversed = sub_images + sub_images[::-1]
 
-            for root, _, files in os.walk(base_dir):
-                parent_dir = os.path.basename(os.path.dirname(root))
-                for file in files:
-                    if file.endswith(('.png', '.jpg', '.jpeg')):
-                        image_path = os.path.join(root, file)
-                        image = cv2.imread(image_path)
-                        if image is not None:
-                            num_images = self.get_num_images_from_filename(file)
-                            sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
-                            sub_images_with_reversed = sub_images + sub_images[::-1]
-                            # Create pixmaps for both sizes
-                            standard_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
-                            large_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, large_square_size)) for img in sub_images_with_reversed]
-                            # Store both sets of images
-                            self.preloaded_images[parent_dir] = {
-                                'standard': standard_pixmaps,
-                                'large': large_pixmaps
-                            }
-                            preloaded_count += 1
-                            print(f"Preloaded image: {parent_dir} ({preloaded_count}/{total_images})")
-                        else:
-                            logger.error(f"Failed to load image from path: {image_path}")
+                        standard_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
+                        large_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, large_square_size)) for img in sub_images_with_reversed]
 
-            # Calculate final memory usage
-            final_memory = process.memory_info().rss  # in bytes
-            memory_used = final_memory - initial_memory  # in bytes
-            total_memory = psutil.virtual_memory().total  # in bytes
+                        self.preloaded_images[parent_dir] = {
+                            'standard': standard_pixmaps,
+                            'large': large_pixmaps
+                        }
+                        preloaded_count += 1
+                        self.preloaded_folders.add(root)  # Track the preloaded folder
+                        print(f"Preloaded image: {parent_dir} ({preloaded_count}/{total_images})")
 
-            # Convert memory usage to MB
-            memory_used_mb = memory_used / (1024 * 1024)
-            total_memory_mb = total_memory / (1024 * 1024)
+                        # Check memory usage after each image is loaded
+                        current_memory = process.memory_info().rss  # in bytes
+                        total_memory = psutil.virtual_memory().total  # in bytes
+                        memory_used_percentage = current_memory / total_memory
 
-            # Calculate percentage of memory used
-            memory_percentage = (memory_used / total_memory) * 100
+                        print(f"Current memory used: {current_memory / (1024 * 1024):.2f} MB ({memory_used_percentage * 100:.2f}% of total memory)")
 
-            print(f"Memory used after preloading: {memory_used_mb:.2f} MB ({memory_percentage:.2f}% of total memory)")
+                        if memory_used_percentage > memory_threshold:
+                            print(f"Memory usage exceeded threshold of {memory_threshold * 100}%. Waiting before deleting unpreloaded folders.")
+                            time.sleep(3)  # Wait for 3 seconds before deletion
+                            for root_dir, dir_names, _ in os.walk(base_dir):
+                                for dir_name in dir_names:
+                                    subfolder_path = os.path.join(root_dir, dir_name)
+                                    if subfolder_path not in self.preloaded_folders:
+                                        try:
+                                            parent_folder = os.path.dirname(subfolder_path)  # Get the parent directory
+                                            # Ensure the folder to delete is not the base_dir or any of its parents
+                                            if parent_folder != base_dir and os.path.commonpath([parent_folder, base_dir]) == base_dir:
+                                                shutil.rmtree(parent_folder)
+                                                print(f"Deleted folder: {subfolder_path}")
+                                        except Exception as e:
+                                            logger.error(f"Failed to delete {subfolder_path}: {e}")
+                            return self.preloaded_images
+                    else:
+                        logger.error(f"Failed to load image from path: {image_path}")
 
-            logger.info(f'Preload images completed ({preloaded_count}/{total_images})')
-            return self.preloaded_images
+        # Print final memory usage
+        final_memory = process.memory_info().rss  # in bytes
+        print(f"Final memory used after preloading: {final_memory / (1024 * 1024):.2f} MB")
 
-
+        logger.info(f'Preload images completed ({preloaded_count}/{total_images})')
+        return self.preloaded_images
 
     def split_into_sub_images(self, image, sub_width, sub_height, num_images):
         sub_images = []
         height, width, _ = image.shape
         for y in range(0, height, sub_height):
             for x in range(0, width, sub_width):
-                sub_image = image[y+y: sub_height, x:x+ sub_width]
+                sub_image = image[y:y + sub_height, x:x + sub_width]
                 if sub_image.shape[0] == sub_height and sub_image.shape[1] == sub_width:
                     sub_images.append(sub_image)
                 if len(sub_images) >= num_images:
@@ -149,6 +162,7 @@ class ImageStore:
             # Return the images of the requested size
             return self.preloaded_images[image_path].get(size_type, [])
         return []
+
     def add_image(self, subfolder_name, image_filename):
         if not self.base_dir:
             print("Base directory not set. Please call set_base_dir() before add_image().")
@@ -209,5 +223,6 @@ class ImageStore:
         """Clear all preloaded images from memory."""
         self.preloaded_images.clear()
         print("Preloaded images cleared from memory.")
+
 # Create a global instance
 image_store = ImageStore()

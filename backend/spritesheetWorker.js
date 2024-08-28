@@ -7,7 +7,7 @@ const DriveCapacity = require('./driveCapacity');
 
 const FRAME_WIDTH = 200;
 const FRAMES_PER_ROW = 19;
-const SPRITESHEET_PADDING = 20; // Adjust as needed
+const SPRITESHEET_PADDING = 0; // Adjust as needed
 
 parentPort.on('message', async (data) => {
     const { frames, checkDriveCapacity } = data;
@@ -24,14 +24,16 @@ async function createAndSaveSpritesheet(frames, checkDriveCapacity) {
         throw new Error('Invalid frames data provided.');
     }
 
+    const localRecordingsFolder = path.resolve(__dirname, '../databases/database0');
+
     if (checkDriveCapacity) {
-        // const localRecordingsFolder = path.resolve(__dirname, '../databases/database0');
-        // const limit = 80; // Percentage threshold
-        // const driveCapacity = new DriveCapacity(localRecordingsFolder, limit);
-        // const isFull = await driveCapacity.checkCapacity();
-        // if (isFull) {
-        //     throw new Error('Drive capacity exceeded, cannot save new spritesheet.');
-        // }
+        const limit = 80; // Percentage threshold
+        const driveCapacity = new DriveCapacity(localRecordingsFolder, limit);
+        const isFull = await driveCapacity.checkCapacity();
+        if (isFull) {
+            // Delete the 10 oldest subfolders in database0
+            await deleteOldestSubfolders(localRecordingsFolder, 10);
+        }
     }
 
     const rows = Math.ceil(frames.length / FRAMES_PER_ROW);
@@ -54,9 +56,8 @@ async function createAndSaveSpritesheet(frames, checkDriveCapacity) {
                     .resize(FRAME_WIDTH, FRAME_WIDTH)
                     .toBuffer();
 
-                const x = (index % FRAMES_PER_ROW) * FRAME_WIDTH + SPRITESHEET_PADDING / 2;
-                const y = Math.floor(index / FRAMES_PER_ROW) * FRAME_WIDTH + SPRITESHEET_PADDING / 2;
-
+                const x = (index % FRAMES_PER_ROW) * FRAME_WIDTH;
+                const y = Math.floor(index / FRAMES_PER_ROW) * FRAME_WIDTH;
                 return { input: buffer, top: y, left: x };
             } catch (error) {
                 console.error(`Error processing frame at index ${index}:`, error);
@@ -73,14 +74,39 @@ async function createAndSaveSpritesheet(frames, checkDriveCapacity) {
 
     const spritesheetBuffer = await baseImage.composite(validImages).jpeg().toBuffer();
 
-    const saveResult = await saveSpritesheet(spritesheetBuffer, validImages.length);
+    const saveResult = await saveSpritesheet(spritesheetBuffer, validImages.length, localRecordingsFolder);
     return saveResult;
 }
 
-async function saveSpritesheet(spritesheetBuffer, totalFrames) {
+async function deleteOldestSubfolders(directory, count) {
+    const subfolders = await fs.readdir(directory, { withFileTypes: true });
+    const foldersWithStats = await Promise.all(
+        subfolders
+            .filter(dirent => dirent.isDirectory())
+            .map(async dirent => {
+                const fullPath = path.join(directory, dirent.name);
+                const stats = await fs.stat(fullPath);
+                return { path: fullPath, mtime: stats.mtime };
+            })
+    );
+
+    const sortedFolders = foldersWithStats.sort((a, b) => a.mtime - b.mtime);
+    const foldersToDelete = sortedFolders.slice(0, count);
+
+    for (const folder of foldersToDelete) {
+        try {
+            await fs.rm(folder.path, { recursive: true, force: true });
+            console.log(`Deleted folder: ${folder.path}`);
+        } catch (error) {
+            console.error(`Failed to delete folder ${folder.path}:`, error);
+        }
+    }
+}
+
+async function saveSpritesheet(spritesheetBuffer, totalFrames, localRecordingsFolder) {
     const now = new Date();
     const folderName = `X#${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}-${String(now.getMilliseconds()).padStart(3, '0')}`;
-    const spritesheetFolderPath = path.resolve(__dirname, '../databases/database0', folderName, 'spritesheet');
+    const spritesheetFolderPath = path.resolve(localRecordingsFolder, folderName, 'spritesheet');
 
     await fs.mkdir(spritesheetFolderPath, { recursive: true });
 

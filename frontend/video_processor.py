@@ -42,7 +42,6 @@ class FrameCaptureThread(QThread):
         else:
             logger.error("Failed to set camera exposure. Camera is not opened.")
 
-
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QPixmap)
     cropped_frame_ready = pyqtSignal(np.ndarray)
@@ -90,6 +89,20 @@ class VideoProcessor(QThread):
 
         # Initialize overlay image
         self.overlay_image = None
+
+        # Timer to check brightness every minute
+        self.brightness_timer = QTimer(self)
+        self.brightness_timer.timeout.connect(self.check_brightness)
+        self.brightness_timer.start(60000)  # 60000 ms = 1 minute
+
+    def check_brightness(self):
+        """Check and print the brightness of the last cropped frame."""
+        if self.last_cropped_frame is not None:
+            # Convert to grayscale
+            gray_frame = cv2.cvtColor(self.last_cropped_frame, cv2.COLOR_BGR2GRAY)
+            # Calculate the average brightness
+            brightness = np.mean(gray_frame)
+            print(f"Average brightness of the cropped frame: {brightness:.2f}")
 
     def is_stable(self):
         if len(self.position_history) < self.max_history_length:

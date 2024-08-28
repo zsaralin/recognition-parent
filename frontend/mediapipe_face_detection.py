@@ -16,7 +16,6 @@ class MediaPipeFaceDetection:
 
     def detect_faces(self, frame, callback):
         if frame is None or frame.size == 0:
-            logger.error("Received an invalid or empty frame. Skipping face detection.")
             return
         results = self.face_detection.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         closest_face = None
@@ -76,7 +75,6 @@ class MediaPipeFaceDetection:
                 if cropped_frame is None or cropped_frame.size == 0:
                     logger.error("Cropped frame in detect_faces is empty.")
                 else:
-                    logger.info(f"Cropped frame in detect_faces with shape: {cropped_frame.shape}")
                     self.new_faces.set_cropped_frame(cropped_frame)
             else:
                 logger.error("Bounding box is out of frame bounds.")
@@ -90,7 +88,6 @@ class MediaPipeFaceDetection:
 
     def is_face_facing_forward(self, frame, bbox):
         if frame is None or frame.size == 0:
-            logger.error("Received an invalid or empty frame. Skipping face detection.")
             return False
 
         # Unpack the bounding box
@@ -98,7 +95,6 @@ class MediaPipeFaceDetection:
 
         # Check if the bounding box is within the valid range
         if x < 0 or y < 0 or x + w > frame.shape[1] or y + h > frame.shape[0]:
-            logger.error("Bounding box is out of frame bounds. Skipping face detection.")
             return False
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 

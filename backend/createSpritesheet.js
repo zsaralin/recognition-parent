@@ -1,9 +1,10 @@
 const { Worker } = require('worker_threads');
 const path = require('path');
 
-let min_time_between_spritesheets = 0//2 * 60 * 1000; // 2 minutes in milliseconds
+let min_time_between_spritesheets = 1 * 60 * 1000; // 2 minutes in milliseconds
 let lastSpritesheetCreationTime = 0;
 let isWorkerBusy = false;
+let checkDriveCapacity = true;
 
 // Initialize the worker once
 const worker = new Worker(path.resolve(__dirname, 'spritesheetWorker.js'));
@@ -26,7 +27,7 @@ function setTimeBetweenSpritesheets(newValue) {
     min_time_between_spritesheets = newValue;
 }
 
-async function createSpritesheet(frames, checkDriveCapacity = false) {
+async function createSpritesheet(frames) {
     const currentTime = Date.now();
 
     // Check if enough time has passed since the last spritesheet creation

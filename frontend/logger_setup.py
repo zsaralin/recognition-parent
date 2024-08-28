@@ -2,7 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 # Variable to easily turn logging on or off
-LOGGING_ENABLED = True  # Set this to False to disable logging
+LOGGING_ENABLED = False  # Set this to False to disable logging
 
 if LOGGING_ENABLED:
     # Configure the logger
