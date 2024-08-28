@@ -1,125 +1,50 @@
-import sys
 import cv2
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtWidgets import QApplication, QLabel, QSlider, QVBoxLayout, QWidget, QCheckBox
+import sys
 
-class CameraWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.initUI()
-        print(cv2.__version__)
-        self.brightness = 0
-        self.saturation = 1.0  # Default saturation value
-        self.auto_exposure = True
+def print_camera_properties(cap):
+    properties = [
+        (cv2.CAP_PROP_BRIGHTNESS, "Brightness"),
+        (cv2.CAP_PROP_CONTRAST, "Contrast"),
+        (cv2.CAP_PROP_SATURATION, "Saturation"),
+        (cv2.CAP_PROP_HUE, "Hue"),
+        (cv2.CAP_PROP_GAIN, "Gain"),
+        (cv2.CAP_PROP_EXPOSURE, "Exposure"),
+        (cv2.CAP_PROP_AUTO_EXPOSURE, "Auto Exposure"),
+        (cv2.CAP_PROP_GAMMA, "Gamma"),
+        (cv2.CAP_PROP_TEMPERATURE, "Temperature"),
+        (cv2.CAP_PROP_ZOOM, "Zoom")
+    ]
 
-        # Use OpenCV to access the camera
-        self.cap = cv2.VideoCapture("0")
-        self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 0.5)
-        self.cap.set(cv2.CAP_PROP_SATURATION, 0.5)
+    print("Camera Properties:")
+    for prop_id, prop_name in properties:
+        value = cap.get(prop_id)
+        print(f"{prop_name}: {value}")
 
-        if not self.cap.isOpened():
-            print("Failed to open camera")
-            sys.exit()
+def test_property_range(cap, prop_id, prop_name, test_values):
+    print(f"\nTesting {prop_name} range:")
+    for value in test_values:
+        success = cap.set(prop_id, value)
+        actual_value = cap.get(prop_id)
+        print(f"  Attempted to set {value}: Success = {success}, Actual value = {actual_value}")
 
-    def initUI(self):
-        # Layout
-        layout = QVBoxLayout()
+def main():
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Failed to open camera")
+        sys.exit()
 
-        # Label to display the camera feed
-        self.image_label = QLabel(self)
-        self.image_label.setFixedSize(640, 480)  # Set a fixed size for the camera feed display
-        layout.addWidget(self.image_label)
+    print_camera_properties(cap)
 
-        # Brightness slider
-        self.brightness_slider = QSlider(Qt.Horizontal, self)
-        self.brightness_slider.setMinimum(0)
-        self.brightness_slider.setMaximum(100)
-        self.brightness_slider.setValue(50)  # Default is the middle value
-        self.brightness_slider.valueChanged.connect(self.update_brightness)
-        layout.addWidget(self.brightness_slider)
+    # Test brightness range
+    test_property_range(cap, cv2.CAP_PROP_BRIGHTNESS, "Brightness", [0, 0.5, 1, 50, 100])
 
-        # Saturation slider
-        self.saturation_slider = QSlider(Qt.Horizontal, self)
-        self.saturation_slider.setMinimum(0)
-        self.saturation_slider.setMaximum(100)
-        self.saturation_slider.setValue(50)  # Default is the middle value
-        self.saturation_slider.valueChanged.connect(self.update_saturation)
-        layout.addWidget(self.saturation_slider)
+    # Test saturation range
+    test_property_range(cap, cv2.CAP_PROP_SATURATION, "Saturation", [0, 0.5, 1, 50, 100])
 
-        # Checkbox for Auto Exposure
-        self.auto_exposure_checkbox = QCheckBox("Auto Exposure", self)
-        self.auto_exposure_checkbox.setChecked(True)
-        self.auto_exposure_checkbox.stateChanged.connect(self.toggle_exposure)
-        layout.addWidget(self.auto_exposure_checkbox)
+    # Test exposure range
+    test_property_range(cap, cv2.CAP_PROP_EXPOSURE, "Exposure", [0, 0.01, 0.1, 1, 10, 100])
 
-        # Exposure Time slider (initially hidden)
-        self.exposure_slider = QSlider(Qt.Horizontal, self)
-        self.exposure_slider.setMinimum(1)
-        self.exposure_slider.setMaximum(500)  # Adjust this range as needed
-        self.exposure_slider.setValue(100)
-        self.exposure_slider.setVisible(False)
-        self.exposure_slider.valueChanged.connect(self.update_exposure)
-        layout.addWidget(self.exposure_slider)
+    cap.release()
 
-        # Set layout
-        self.setLayout(layout)
-
-        # Set up a timer to update the frame
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_frame)
-        self.timer.start(20)  # Update every 20ms
-
-        self.setWindowTitle('Camera with Brightness, Saturation, and Exposure Control')
-        self.setFixedSize(650, 650)  # Adjusted size for new elements
-        self.show()
-
-    def update_brightness(self, value):
-        # Convert slider value to the appropriate brightness range [0, 1]
-        brightness_normalized = value
-        self.cap.set(cv2.CAP_PROP_BRIGHTNESS, brightness_normalized)
-
-    def update_saturation(self, value):
-        # Convert slider value to the appropriate saturation range [0, 1]
-        saturation_normalized = value
-        self.cap.set(cv2.CAP_PROP_SATURATION, saturation_normalized)
-
-    def toggle_exposure(self, state):
-        if state == Qt.Checked:
-            self.auto_exposure = True
-            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 3)  # Enable auto exposure
-            self.exposure_slider.setVisible(False)
-        else:
-            self.auto_exposure = False
-            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # Disable auto exposure (manual mode)
-            self.exposure_slider.setVisible(True)
-            self.update_exposure(self.exposure_slider.value())
-
-    def update_exposure(self, value):
-        if not self.auto_exposure:
-            exposure_time = value / 1000.0  # Convert to seconds or fraction of a second
-            self.cap.set(cv2.CAP_PROP_EXPOSURE, exposure_time)
-
-    def update_frame(self):
-        ret, frame = self.cap.read()
-        if ret:
-            # Resize the frame to fit the label
-            frame = cv2.resize(frame, (640, 480))
-
-            # Convert the frame to QImage
-            rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            h, w, ch = rgb_image.shape
-            bytes_per_line = ch * w
-            q_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
-
-            # Display the image
-            self.image_label.setPixmap(QPixmap.fromImage(q_image))
-
-    def closeEvent(self, event):
-        # Release the camera when the window is closed
-        self.cap.release()
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = CameraWindow()
-    sys.exit(app.exec_())
+if __name__ == "__main__":
+    main()

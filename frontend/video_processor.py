@@ -13,6 +13,36 @@ from one_euro import OneEuroFilter
 import asyncio
 from backend_communicator import send_add_frame_request, send_no_face_detected_request
 
+class FrameCaptureThread(QThread):
+    new_frame = pyqtSignal(np.ndarray)
+
+    def __init__(self, camera_index=0):
+        super().__init__()
+        self.camera_index = camera_index
+        self.cap = cv2.VideoCapture(self.camera_index)
+        self.stopped = False
+
+        if not self.cap.isOpened():
+            logger.error("Failed to open camera.")
+
+    def run(self):
+        while not self.stopped:
+            ret, frame = self.cap.read()
+            if ret and frame is not None:
+                self.new_frame.emit(frame)
+
+    def stop(self):
+        self.stopped = True
+        self.cap.release()
+
+    def set_exposure(self, exposure_value):
+        if self.cap.isOpened():
+            self.cap.set(cv2.CAP_PROP_GAIN, exposure_value)
+            logger.info(f"Camera exposure set to {exposure_value}")
+        else:
+            logger.error("Failed to set camera exposure. Camera is not opened.")
+
+
 class VideoProcessor(QThread):
     frame_ready = pyqtSignal(QPixmap)
     cropped_frame_ready = pyqtSignal(np.ndarray)
@@ -24,16 +54,12 @@ class VideoProcessor(QThread):
         self.new_faces = new_faces
 
         self.face_detector = MediaPipeFaceDetection(self.new_faces)
-        self.cap = cv2.VideoCapture(self.camera_index)
         self.callback = callback
 
-        if not self.cap.isOpened():
-            logger.error("Failed to open camera.")
-            return
+        self.capture_thread = FrameCaptureThread(camera_index=self.camera_index)
+        self.capture_thread.new_frame.connect(self.process_frame)
+        self.capture_thread.start()
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.process_frame)
-        self.timer.start(10)
         self.setPriority(QThread.HighestPriority)
 
         self.stopped = False
@@ -75,7 +101,7 @@ class VideoProcessor(QThread):
 
         # Check if all positions are within the stability threshold
         for cx, cy in self.position_history:
-            if abs(cx - avg_cx) > config.move_threshold or abs(cy - avg_cy) >  config.move_threshold:
+            if abs(cx - avg_cx) > config.move_threshold or abs(cy - avg_cy) > config.move_threshold:
                 return False
 
         return True
@@ -111,13 +137,12 @@ class VideoProcessor(QThread):
         for c in range(3):  # For each RGB channel
             frame[:, :, c] = np.where(alpha_channel > 0, self.overlay_image[:, :, c], frame[:, :, c])
 
-    def process_frame(self):
+    def process_frame(self, frame):
         if self.stopped:
             return
 
         try:
-            ret, frame = self.cap.read()
-            if not ret or frame is None or frame.size == 0:
+            if frame is None or frame.size == 0:
                 logger.error("No valid frame available. Retrying...")
                 return
 
@@ -216,12 +241,6 @@ class VideoProcessor(QThread):
         except Exception as e:
             logger.exception(f"Error processing frame: {e}")
 
-    def convert_image_to_data_url(frame):
-        """Convert an image to JPEG format and encode it as a Base64 string."""
-        _, buffer = cv2.imencode('.jpg', frame)  # Encode the frame as JPEG
-        jpg_as_text = base64.b64encode(buffer).decode()  # Convert to Base64
-        return f"data:image/jpeg;base64,{jpg_as_text}"
-
     def extract_frame(self, frame, w, h, cx, cy):
         frame_height, frame_width = frame.shape[:2]
 
@@ -268,17 +287,9 @@ class VideoProcessor(QThread):
 
     def stop(self):
         self.stopped = True
-        self.timer.stop()
+        self.capture_thread.stop()
         if self.isRunning():
             self.terminate()
-
-        self.cap.release()
-    def set_exposure(self, exposure_value):
-        if self.cap.isOpened():
-            self.cap.set(cv2.CAP_PROP_GAIN, exposure_value)
-            logger.info(f"Camera exposure set to {exposure_value}")
-        else:
-            logger.error("Failed to set camera exposure. Camera is not opened.")
 
     def get_cropped_frame(self):
         return self.last_cropped_frame
