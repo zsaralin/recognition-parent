@@ -62,8 +62,9 @@ async function createSpritesheet(frames) {
                 resolve(null);
             } else {
                 console.log('Spritesheet saved successfully');
+                console.log('Deleted the following folders:', result.deletedFolders); // Log deleted folders
                 lastSpritesheetCreationTime = Date.now();
-                resolve(result); // Return the result containing folderName and fileName
+                resolve(result); // Return the result containing folderName, fileName, and deletedFolders
             }
         });
 

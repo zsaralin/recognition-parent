@@ -13,26 +13,26 @@ parentPort.on('message', async (data) => {
     const { frames, checkDriveCapacity } = data;
     try {
         const result = await createAndSaveSpritesheet(frames, checkDriveCapacity);
-        parentPort.postMessage(result);
+        parentPort.postMessage(result);  // Send result back to main thread, including deleted folders
     } catch (error) {
         parentPort.postMessage({ error: error.message });
     }
 });
-
 async function createAndSaveSpritesheet(frames, checkDriveCapacity) {
     if (!Array.isArray(frames) || frames.length === 0) {
         throw new Error('Invalid frames data provided.');
     }
 
     const localRecordingsFolder = path.resolve(__dirname, '../databases/database0');
+    let deletedFolders = [];
 
     if (checkDriveCapacity) {
         const limit = 80; // Percentage threshold
         const driveCapacity = new DriveCapacity(localRecordingsFolder, limit);
         const isFull = await driveCapacity.checkCapacity();
         if (isFull) {
-            // Delete the 10 oldest subfolders in database0
-            await deleteOldestSubfolders(localRecordingsFolder, 10);
+            // Delete the 10 oldest subfolders in database0 and capture the deleted folders
+            deletedFolders = await deleteOldestSubfolders(localRecordingsFolder, 10);
         }
     }
 
@@ -75,7 +75,9 @@ async function createAndSaveSpritesheet(frames, checkDriveCapacity) {
     const spritesheetBuffer = await baseImage.composite(validImages).jpeg().toBuffer();
 
     const saveResult = await saveSpritesheet(spritesheetBuffer, validImages.length, localRecordingsFolder);
-    return saveResult;
+
+    // Include the deleted folders in the result
+    return { ...saveResult, deletedFolders };
 }
 
 async function deleteOldestSubfolders(directory, count) {
@@ -86,21 +88,26 @@ async function deleteOldestSubfolders(directory, count) {
             .map(async dirent => {
                 const fullPath = path.join(directory, dirent.name);
                 const stats = await fs.stat(fullPath);
-                return { path: fullPath, mtime: stats.mtime };
+                return { path: fullPath, mtime: stats.mtime, name: dirent.name };
             })
     );
 
     const sortedFolders = foldersWithStats.sort((a, b) => a.mtime - b.mtime);
     const foldersToDelete = sortedFolders.slice(0, count);
 
+    const deletedFolders = [];
+
     for (const folder of foldersToDelete) {
         try {
             await fs.rm(folder.path, { recursive: true, force: true });
             console.log(`Deleted folder: ${folder.path}`);
+            deletedFolders.push(folder.name);
         } catch (error) {
             console.error(`Failed to delete folder ${folder.path}:`, error);
         }
     }
+
+    return deletedFolders;
 }
 
 async function saveSpritesheet(spritesheetBuffer, totalFrames, localRecordingsFolder) {

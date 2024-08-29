@@ -5,28 +5,49 @@ let camera = new UVCControl(0x0BDA, 0x3035, {
     camNum: 0,
 });
 
-function setCameraControl(controlName, value, callback) {
-    function setControl(name, val, cb) {
-        camera.set(name, val, function(err) {
-            if (err) {
-                console.error(`Error setting ${name}:`, err);
-            }
-            if (cb) cb(err);
-        });
-    }
+let isManualExposureMode = false; // Track the current exposure mode
 
-    if (controlName === 'absoluteExposureTime') {
-        // Set autoExposureMode to 1 (manual) before setting absoluteExposureTime
-        setControl('autoExposureMode', 1, function(err) {
+function setCameraControl(controlName, value, callback) {
+    if (controlName === 'autoExposureMode') {
+        const isAuto = value === 2; // 2 for automatic, 1 for manual
+        camera.set(controlName, value, function(err) {
             if (err) {
-                return callback(err);
+                console.error(`Error setting exposure mode to ${isAuto ? 'automatic' : 'manual'}:`, err);
+                if (callback) callback(err);
+            } else {
+                isManualExposureMode = !isAuto;
+                console.log(`Exposure mode set to ${isAuto ? 'automatic' : 'manual'}.`);
+                if (callback) callback(null);
             }
-            // Now set absoluteExposureTime
-            setControl(controlName, value, callback);
+        });
+    } else if (controlName === 'absoluteExposureTime') {
+        if (!isManualExposureMode) {
+            const error = new Error("Cannot set exposure time because the camera is not in manual mode.");
+            console.error(error.message);
+            if (callback) callback(error);
+            return;
+        }
+
+        camera.set(controlName, value, function(err) {
+            if (err) {
+                console.error("Error setting absoluteExposureTime:", err);
+                if (callback) callback(err);
+            } else {
+                console.log(`Exposure time set to ${value}.`);
+                if (callback) callback(null);
+            }
         });
     } else {
-        // Set other controls directly
-        setControl(controlName, value, callback);
+        // For other camera controls
+        camera.set(controlName, value, function(err) {
+            if (err) {
+                console.error(`Error setting ${controlName}:`, err);
+                if (callback) callback(err);
+            } else {
+                console.log(`${controlName} set to ${value}.`);
+                if (callback) callback(null);
+            }
+        });
     }
 }
 

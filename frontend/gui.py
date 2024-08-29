@@ -189,11 +189,18 @@ class SliderOverlay(QWidget):
         self.save_button.clicked.connect(self.save_values_to_config)
 
         self.auto_exposure_checkbox = QCheckBox('Auto Exposure', self)
-        self.auto_exposure_checkbox.setChecked(config.auto_exposure)
         self.auto_exposure_checkbox.setFont(font)
         self.auto_exposure_checkbox.stateChanged.connect(self.toggle_auto_exposure)
 
-        # Adding the groups to the main layout
+        # Manual Exposure Checkbox
+        self.manual_exposure_checkbox = QCheckBox('Manual Exposure', self)
+        self.manual_exposure_checkbox.setFont(font)
+        self.manual_exposure_checkbox.stateChanged.connect(self.toggle_manual_exposure)
+
+        self.auto_exposure_checkbox.stateChanged.connect(self.sync_exposure_checkboxes)
+        self.manual_exposure_checkbox.stateChanged.connect(self.sync_exposure_checkboxes)
+
+    # Adding the groups to the main layout
         main_layout.addLayout(create_slider_group('Min GIF Delay', self.min_gif_delay_slider, self.min_gif_delay_input))
         main_layout.addLayout(create_slider_group('Max GIF Delay', self.max_gif_delay_slider, self.max_gif_delay_input))
         main_layout.addLayout(create_slider_group('Num Cols', self.num_cols_slider, self.num_cols_input))
@@ -216,6 +223,7 @@ class SliderOverlay(QWidget):
 
         main_layout.addLayout(create_slider_group('Cell Zoom Factor', self.cell_zoom_factor_slider, self.cell_zoom_factor_input))
         main_layout.addWidget(self.auto_exposure_checkbox)
+        main_layout.addWidget(self.manual_exposure_checkbox)
 
         # Add checkboxes and button directly
         main_layout.addWidget(self.create_sprites_checkbox)
@@ -227,6 +235,20 @@ class SliderOverlay(QWidget):
 
         self.setLayout(main_layout)
         self.setWindowTitle('Overlay Controls')
+    def toggle_auto_exposure(self, state):
+        if state == Qt.Checked:
+            set_camera_control('autoExposureMode', 0)  # Auto exposure on
+
+    def toggle_manual_exposure(self, state):
+        if state == Qt.Checked:
+            set_camera_control('autoExposureMode', 1)  # Manual exposure on
+
+    def sync_exposure_checkboxes(self):
+        """Ensure only one exposure mode checkbox is selected at a time."""
+        if self.auto_exposure_checkbox.isChecked():
+            self.manual_exposure_checkbox.setChecked(False)
+        elif self.manual_exposure_checkbox.isChecked():
+            self.auto_exposure_checkbox.setChecked(False)
 
     def create_slider(self, min_value, max_value, default_value=None, step=1):
         slider = QSlider(Qt.Horizontal, self)
@@ -503,7 +525,6 @@ class SliderOverlay(QWidget):
             config_file.write(f"show_fps = {config.show_fps}\n")
             config_file.write(f"auto_update = {config.auto_update}\n")
             config_file.write(f"show_saved_frame = {config.show_saved_frame}\n")
-            config_file.write(f"auto_exposure_time = {config.auto_exposure_time}\n")
             config_file.write(f"gain = {config.gain}\n")
             config_file.write(f"jump_threshold = {config.jump_threshold}\n")
             config_file.write(f"min_face_size = {config.min_face_size}\n")
@@ -511,7 +532,6 @@ class SliderOverlay(QWidget):
             config_file.write(f"confidence_score = {config.confidence_score}\n")
             config_file.write(f"mirror = {config.mirror}\n")
             config_file.write(f"demo = {config.demo}\n")  # Write the demo config value
-            config_file.write(f"auto_exposure= {config.auto_exposure}\n")
             config_file.write(f"move_threshold = {config.move_threshold}\n")
             config_file.write(f"min_num_ss_frames = {config.min_num_ss_frames}\n")
             config_file.write(f"max_num_rows_ss_frames = {config.max_num_rows_ss_frames}\n")

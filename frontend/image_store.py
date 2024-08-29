@@ -17,7 +17,6 @@ class ImageStore:
         self.sprite_width = 200
         self.executor = ThreadPoolExecutor(max_workers=2)  # Use threads for parallel processing
         self.preloaded_folders = set()  # Track preloaded folders
-
     def preload_images(self, app, base_dir, num_cols=21, memory_threshold=0.95):
         self.base_dir = base_dir
         logger.info('Starting preload images')
@@ -39,8 +38,12 @@ class ImageStore:
             total_images += len([file for file in files if file.endswith(('.png', '.jpg', '.jpeg'))])
 
         # Preload images
-        for root, dirs, files in os.walk(base_dir):
+        for root, dirs, files in sorted(os.walk(base_dir), reverse=True):  # Sort directories in reverse order
+            dirs.sort(reverse=True)  # Ensure directories are processed in reverse order
+            files.sort(reverse=True)  # Sort files in reverse order
+
             parent_dir = os.path.basename(os.path.dirname(root))
+
             for file in files:
                 if file.endswith(('.png', '.jpg', '.jpeg')):
                     image_path = os.path.join(root, file)
@@ -93,6 +96,7 @@ class ImageStore:
 
         logger.info(f'Preload images completed ({preloaded_count}/{total_images})')
         return self.preloaded_images
+
 
     def split_into_sub_images(self, image, sub_width, sub_height, num_images):
         sub_images = []
@@ -224,5 +228,12 @@ class ImageStore:
         self.preloaded_images.clear()
         print("Preloaded images cleared from memory.")
 
+    def delete_specific_entries(self, keys_to_delete):
+        for key in keys_to_delete:
+            if key in self.preloaded_images:
+                del self.preloaded_images[key]
+                print(f"Deleted preloaded images for {key}")
+            else:
+                print(f"Key {key} not found in preloaded images.")
 # Create a global instance
 image_store = ImageStore()

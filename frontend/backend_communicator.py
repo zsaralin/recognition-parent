@@ -124,29 +124,40 @@ def send_no_face_detected_request():
                 if result['success']:
                     file_path = res_json.get('filePath')
                     subfolder = res_json.get('subfolder')
+                    deleted_folders = res_json.get('deletedFolders', [])  # Get deleted folders from response
 
                     result['filePath'] = file_path
                     result['subfolder'] = subfolder
+                    result['deletedFolders'] = deleted_folders
+
                     if file_path:
                         logger.info(f"Received new spritesheet path: {file_path}")
                         if image_store.add_image(subfolder, file_path):
                             logger.info(f"Image {file_path} added to preloaded images.")
                         else:
                             result['success'] = False
+
             else:
                 result['success'] = False
-                # logger.error(f"Error processing frames: {response.status_code}, {response.text}")
+                logger.error(f"Error processing frames: {response.status_code}, {response.text}")
         except Exception as e:
             result['success'] = False
-            # logger.exception("Error sending noFaceDetected request to server: %s", e)
+            logger.exception("Error sending noFaceDetected request to server: %s", e)
         finally:
             handle_response(result)
 
     def handle_response(response):
         if response.get('success'):
             print("Spritesheet created and image added successfully:", response.get('filePath'))
+
+            # Check if any folders were deleted and remove the corresponding entries from ImageStore
+            deleted_folders = response.get('deletedFolders', [])
+            if deleted_folders:
+                image_store.delete_specific_entries(deleted_folders)
+
         else:
             print("Failed to create spritesheet or add image.")
+
     threading.Thread(target=make_request).start()
 
 def set_camera_control(control_name, value):
