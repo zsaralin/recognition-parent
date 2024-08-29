@@ -1,91 +1,74 @@
 Server is running on http://localhost:3000
-objc[567]: Class GNotificationCenterDelegate is implemented in both /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.42.dylib (0x12e42da28) and /opt/homebrew/Cellar/glib/2.80.4/lib/libgio-2.0.0.dylib (0x108c406b0). One of the two will be used. Which one is undefined.
+objc[639]: Class GNotificationCenterDelegate is implemented in both /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.42.dylib (0x12c2eda28) and /opt/homebrew/Cellar/glib/2.80.4/lib/libgio-2.0.0.dylib (0x106b086b0). One of the two will be used. Which one is undefined.
+Worker encountered an error: Error: The module '/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/canvas/build/Release/canvas.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 93. This version of Node.js requires
+NODE_MODULE_VERSION 115. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1586:18)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function._load (node:internal/modules/cjs/loader:1104:12)
+    at Module.require (node:internal/modules/cjs/loader:1311:19)
+    at require (node:internal/modules/helpers:179:18)
+    at Object.<anonymous> (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/canvas/lib/bindings.js:3:18)
+    at Module._compile (node:internal/modules/cjs/loader:1469:14)
+    at Object..js (node:internal/modules/cjs/loader:1548:10)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Function._load (node:internal/modules/cjs/loader:1104:12) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+Worker stopped unexpectedly with exit code 1
+Error getting current exposure time: Error: USB device not found with vid 0xbda, pid 0x3035
+    at UVCControl.getControlParams (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:139:21)
+    at UVCControl.get (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:171:8)
+    at getCurrentExposureTime (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:56:12)
+    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:136:5
+    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
+    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
+    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
+Error getting current exposure time: Error: USB device not found with vid 0xbda, pid 0x3035
+    at UVCControl.getControlParams (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:139:21)
+    at UVCControl.get (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:171:8)
+    at getCurrentExposureTime (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:56:12)
+    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:136:5
+    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
+    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
+    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
+1
+Error setting exposure mode to manual: Error: USB device not found with vid 0xbda, pid 0x3035
+    at UVCControl.getControlParams (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:139:21)
+    at UVCControl.set (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:187:8)
+    at setCameraControl (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:14:16)
+    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:124:5
+    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
+    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
+    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
+Error setting autoExposureMode: Error: USB device not found with vid 0xbda, pid 0x3035
+    at UVCControl.getControlParams (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:139:21)
+    at UVCControl.set (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:187:8)
+    at setCameraControl (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:14:16)
+    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:124:5
+    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
+    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
+    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
 504
 Setting TensorFlow backend...
 TensorFlow backend is ready.
 Loading models from disk...
 Models loaded successfully.
 No face detected with input size: 32
-No face detected with input size: 64
-No face detected with input size: 96
-Face detected with input size: 128
-504
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-504
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-Setting TensorFlow backend...
-TensorFlow backend is ready.
-Loading models from disk...
-Models loaded successfully.
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-Spritesheet saved successfully
-Descriptor saved to /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2024-08-28-13-04-08-955/descriptor.json
-504
-No face detected with input size: 32
-Face detected with input size: 64
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-Descriptor saved to /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2024-08-28-13-13-39-377/descriptor.json
-Spritesheet saved successfully
-504
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-504
-No face detected with input size: 32
-No face detected with input size: 64
-No face detected with input size: 96
-No face detected with input size: 128
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-Descriptor saved to /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2024-08-28-13-14-12-895/descriptor.json
-Spritesheet saved successfully
-504
-No face detected with input size: 32
 Face detected with input size: 64
 504
 No face detected with input size: 32
@@ -93,78 +76,6 @@ No face detected with input size: 64
 Face detected with input size: 96
 504
 No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-Descriptor saved to /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2024-08-28-13-15-41-336/descriptor.json
-Spritesheet saved successfully
-504
-No face detected with input size: 32
 Face detected with input size: 64
-504
-No face detected with input size: 32
-Face detected with input size: 64
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-Descriptor saved to /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2024-08-28-13-15-48-226/descriptor.json
-Spritesheet saved successfully
-504
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-504
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-504
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
-Descriptor saved to /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2024-08-28-13-25-40-768/descriptor.json
-Spritesheet saved successfully
-504
-No face detected with input size: 32
-No face detected with input size: 64
-Face detected with input size: 96
+Worker timed out while processing the task.
+Failed to create spritesheet.

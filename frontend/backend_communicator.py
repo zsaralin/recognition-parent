@@ -160,6 +160,27 @@ def send_no_face_detected_request():
 
     threading.Thread(target=make_request).start()
 
+def get_current_exposure_time():
+    """
+    Sends a request to the backend to retrieve the current exposure time.
+    
+    :return: The current exposure time if successful, None otherwise.
+    """
+    url = f"{BASE_SERVER_URL}/get-exposure-time"
+
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            exposure_time = response.text
+            logger.info(f"Current exposure time: {exposure_time}")
+            return exposure_time
+        else:
+            logger.error(f"Error getting exposure time: {response.status_code}, {response.text}")
+            return None
+    except Exception as e:
+        logger.exception(f"Error sending get-exposure-time request to server: {e}")
+        return None
+        
 def set_camera_control(control_name, value):
     """
     Sends a request to the backend to set the camera control.

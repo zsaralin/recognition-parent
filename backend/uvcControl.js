@@ -1,6 +1,6 @@
 const UVCControl = require('uvc-control');
 
-let camera = new UVCControl(0x0BDA, 0x3035, {
+let camera = new UVCControl(0x0BDA, 0x3039, {
     processingUnitId: 0x02,
     camNum: 0,
 });
@@ -8,8 +8,9 @@ let camera = new UVCControl(0x0BDA, 0x3035, {
 let isManualExposureMode = false; // Track the current exposure mode
 
 function setCameraControl(controlName, value, callback) {
+    console.log(value)
     if (controlName === 'autoExposureMode') {
-        const isAuto = value === 2; // 2 for automatic, 1 for manual
+        const isAuto = value === 8; // 2 for automatic, 1 for manual
         camera.set(controlName, value, function(err) {
             if (err) {
                 console.error(`Error setting exposure mode to ${isAuto ? 'automatic' : 'manual'}:`, err);
@@ -51,4 +52,16 @@ function setCameraControl(controlName, value, callback) {
     }
 }
 
-module.exports = { setCameraControl };
+function getCurrentExposureTime(callback) {
+    camera.get('absoluteExposureTime', function(err, value) {
+        if (err) {
+            console.error("Error getting current exposure time:", err);
+            if (callback) callback(err, null);
+        } else {
+            console.log(`Current exposure time is ${value}.`);
+            if (callback) callback(null, value);
+        }
+    });
+}
+
+module.exports = { setCameraControl, getCurrentExposureTime };

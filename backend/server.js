@@ -7,7 +7,7 @@ const { findSimilarImages } = require("./faceMatching.js");
 const multer = require('multer');
 const {preloadImages} = require('./preloadImages.js')
 const {addFrame, clearFrames, noFaceDetected, setMaxFrames, setMinFrames} = require("./framesHandler.js");
-const {setExposureTime, setExposureMode, setCameraControl} = require("./uvcControl");
+const {setExposureTime, setExposureMode, getCurrentExposureTime, setCameraControl} = require("./uvcControl");
 const {setTimeBetweenSpritesheets,} = require("./createSpritesheet.js");
 const {getRandomImages} = require("./randomImages.js");
 
@@ -131,6 +131,17 @@ app.post('/set-camera-control', (req, res) => {
     });
 });
 
+// Route for getting the current exposure time
+app.get('/get-exposure-time', (req, res) => {
+    getCurrentExposureTime((err, value) => {
+        if (err) {
+            console.error("Error getting current exposure time:", err);
+            return res.status(500).send('Error getting current exposure time');
+        } else {
+            return res.send(`Current exposure time is ${value}`);
+        }
+    });
+});
 // Single API endpoint to update various settings directly in the route
 app.post('/update-setting', (req, res) => {
     const { setting, value } = req.body;

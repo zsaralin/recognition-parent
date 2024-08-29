@@ -11,7 +11,7 @@ from text_overlay import add_text_overlay
 import time
 from one_euro import OneEuroFilter
 import asyncio
-from backend_communicator import send_add_frame_request, send_no_face_detected_request
+from backend_communicator import send_add_frame_request, send_no_face_detected_request, set_camera_control, get_current_exposure_time
 
 class FrameCaptureThread(QThread):
     new_frame = pyqtSignal(np.ndarray)
@@ -92,17 +92,102 @@ class VideoProcessor(QThread):
 
         # Timer to check brightness every minute
         self.brightness_timer = QTimer(self)
-        self.brightness_timer.timeout.connect(self.check_brightness)
-        self.brightness_timer.start(60000)  # 60000 ms = 1 minute
+        self.brightness_timer.timeout.connect(self.handle_brightness_check)
+        self.brightness_timer.start(10000)  # Check brightness every 3 seconds
+
+        # Flag to indicate if a face has been detected since the last brightness check
+        self.face_detected_since_last_check = False
+
+        # Exposure adjustment variables
+        self.is_adjusting_exposure = False
+        self.cancel_adjustment = False
+
+    def handle_brightness_check(self):
+        """Handles brightness check; only checks if a face has been detected since the last check."""
+        if self.face_detected_since_last_check:
+            self.check_brightness()
+            self.face_detected_since_last_check = False
+        else:
+            logger.info("No face detected in the last check period. Skipping brightness check.")
 
     def check_brightness(self):
-        """Check and print the brightness of the last cropped frame."""
+        """Check and adjust brightness based on the current frame if auto EV is enabled."""
         if self.last_cropped_frame is not None:
             # Convert to grayscale
             gray_frame = cv2.cvtColor(self.last_cropped_frame, cv2.COLOR_BGR2GRAY)
             # Calculate the average brightness
             brightness = np.mean(gray_frame)
             print(f"Average brightness of the cropped frame: {brightness:.2f}")
+
+            if config.auto_ev:
+                self.adjust_exposure_based_on_brightness(brightness)
+
+    def adjust_exposure_based_on_brightness(self, current_brightness):
+        """Adjusts the exposure time based on the current brightness level."""
+        if self.is_adjusting_exposure:
+            # Skip this execution if an adjustment is already in progress
+            return
+
+        self.is_adjusting_exposure = True
+        self.cancel_adjustment = False  # Reset the cancel flag
+        target_brightness = config.brightness
+
+        def adjust_exposure(current_brightness):
+            if self.cancel_adjustment:
+                # Stop the loop if a new brightness adjustment is requested
+                self.is_adjusting_exposure = False
+                return
+
+            # Calculate the difference between current and target brightness
+            brightness_difference = target_brightness - current_brightness
+
+            # Determine step size based on the brightness difference
+            step_size = max(5, abs(brightness_difference) // 5)  # Larger steps for larger differences, minimum step of 5
+
+            current_exposure = self.get_current_exposure_time()
+            print(f"Brightness difference: {brightness_difference}, Step size: {step_size}")
+
+            if brightness_difference > 15 and current_exposure < 1200:  # Cap at 1200
+                # Increase exposure time based on the step size, but cap it at 1200
+                new_exposure = min(current_exposure + step_size, 1200)
+                set_camera_control('absoluteExposureTime', new_exposure)
+            elif brightness_difference < -15 and current_exposure > 1:
+                # Decrease exposure time based on the step size
+                new_exposure = max(current_exposure - step_size, 1)
+                set_camera_control('absoluteExposureTime', new_exposure)
+            else:
+                # Exit the loop if brightness is within the desired range
+                self.is_adjusting_exposure = False
+                return
+
+            # Fetch the updated brightness after changing exposure
+            updated_brightness = self.get_updated_brightness()
+
+            # Delay the next adjustment by 500 ms
+            QTimer.singleShot(2000, lambda: adjust_exposure(updated_brightness))
+
+        # Start the adjustment process
+        adjust_exposure(current_brightness)
+
+    def get_updated_brightness(self):
+        """Calculates the brightness of the current frame."""
+        if self.last_cropped_frame is not None:
+            gray_frame = cv2.cvtColor(self.last_cropped_frame, cv2.COLOR_BGR2GRAY)
+            return np.mean(gray_frame)
+        return None
+
+    def get_current_exposure_time(self):
+        """Fetch the current exposure time from the backend."""
+        response = get_current_exposure_time()
+        if response:
+            try:
+                return int(response.split()[-1])  # Assumes the number is at the end of the string
+            except ValueError as e:
+                logger.error(f"Error parsing exposure time: {e}")
+                return 1  # Default to a minimum value if parsing fails
+        else:
+            logger.error("Failed to get current exposure time.")
+            return 1
 
     def is_stable(self):
         if len(self.position_history) < self.max_history_length:
@@ -216,6 +301,9 @@ class VideoProcessor(QThread):
                     self.consistent_detection_counter += 1  # Prevent further saving
                 elif not self.is_stable():
                     self.new_faces.treat_as_no_face_detected()
+
+                # Set the flag indicating a face was detected
+                self.face_detected_since_last_check = True
 
             else:
                 self.no_face_counter += 1

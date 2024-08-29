@@ -1,10 +1,8 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QLineEdit, QPushButton, QCheckBox, QHBoxLayout
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
-import config
-from backend_communicator import set_camera_control, update_max_frames, update_min_frames, update_min_time_between_frames
-from PyQt5.QtWidgets import QToolButton
-from PyQt5.QtGui import QIcon
+from backend_communicator import set_camera_control, get_current_exposure_time, update_max_frames, update_min_frames, update_min_time_between_frames
+import config 
 
 class SliderOverlay(QWidget):
     config_changed = pyqtSignal()  # Signal to notify when config changes
@@ -12,15 +10,22 @@ class SliderOverlay(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.Tool | Qt.FramelessWindowHint)
+        self.current_exposure = self.get_initial_exposure_time()  # Get initial exposure time
+
         self.initUI()
-        # self.setFocusPolicy(Qt.StrongFocus)  # Ensure the widget can receive key events
         self.setFixedSize(500, 600)  # Set a fixed size for the window with extra width and height
         self.move(10, 10)  # Move the window to the top-left corner of the screen
         self.is_visible = True  # Variable to track if the window is shown
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlag(Qt.WindowStaysOnTopHint)
-        # Set the entire widget's background color to white
         self.setStyleSheet("background-color: lightpink;")
+
+        # Initialize camera control variables
+        self.is_adjusting_exposure = False  # Flag to track if exposure adjustment is in progress
+        self.cancel_adjustment = False  # Flag to cancel current adjustment loop
+
+        # Set manual exposure mode by default
+        self.set_manual_exposure_mode()
 
     def initUI(self):
         wrapper = QWidget()
@@ -107,9 +112,9 @@ class SliderOverlay(QWidget):
         self.font_size_input = self.create_input(0.1, 3.0, is_double=True)
         self.font_size_input.setText(str(config.font_size))
 
-        self.auto_exposure_time_slider = self.create_slider(50, 2000, int(config.auto_exposure_time))
-        self.auto_exposure_time_input = self.create_input(50, 2000, is_double=False)
-        self.auto_exposure_time_input.setText(str(int(config.auto_exposure_time)))
+        self.auto_exposure_time_slider = self.create_slider(50, 1200, self.current_exposure)
+        self.auto_exposure_time_input = self.create_input(50, 1200, is_double=False)
+        self.auto_exposure_time_input.setText(str(int(self.current_exposure)))
 
         self.gain_slider = self.create_slider(1, 128, int(config.gain))
         self.gain_input = self.create_input(1, 128, is_double=False)
@@ -192,15 +197,25 @@ class SliderOverlay(QWidget):
         self.auto_exposure_checkbox.setFont(font)
         self.auto_exposure_checkbox.stateChanged.connect(self.toggle_auto_exposure)
 
+        # Auto EV Checkbox
+        self.auto_ev_checkbox = QCheckBox('Auto EV', self)
+        self.auto_ev_checkbox.setFont(font)
+        self.auto_ev_checkbox.setChecked(config.auto_ev)  # Load the state from the config
+        self.auto_ev_checkbox.stateChanged.connect(self.toggle_auto_ev)
+
+        # Brightness Slider and Input
+        self.brightness_slider = self.create_slider(0, 255, config.brightness)
+        self.brightness_input = self.create_input(0, 255, is_double=False)
+        self.brightness_input.setText(str(config.brightness))
+
         # Manual Exposure Checkbox
         self.manual_exposure_checkbox = QCheckBox('Manual Exposure', self)
         self.manual_exposure_checkbox.setFont(font)
+
+        self.manual_exposure_checkbox.setChecked(True)  # Start with manual exposure if auto is off
         self.manual_exposure_checkbox.stateChanged.connect(self.toggle_manual_exposure)
 
-        self.auto_exposure_checkbox.stateChanged.connect(self.sync_exposure_checkboxes)
-        self.manual_exposure_checkbox.stateChanged.connect(self.sync_exposure_checkboxes)
-
-    # Adding the groups to the main layout
+        # Adding the groups to the main layout
         main_layout.addLayout(create_slider_group('Min GIF Delay', self.min_gif_delay_slider, self.min_gif_delay_input))
         main_layout.addLayout(create_slider_group('Max GIF Delay', self.max_gif_delay_slider, self.max_gif_delay_input))
         main_layout.addLayout(create_slider_group('Num Cols', self.num_cols_slider, self.num_cols_input))
@@ -220,9 +235,11 @@ class SliderOverlay(QWidget):
         main_layout.addLayout(create_slider_group('Min Num Spritesheet Frames', self.min_num_ss_frames_slider, self.min_num_ss_frames_input))
         main_layout.addLayout(create_slider_group('Max Num Rows Spritesheet Frames', self.max_num_rows_ss_frames_slider, self.max_num_rows_ss_frames_input))
         main_layout.addLayout(create_slider_group('Minutes between Spritesheets', self.min_time_between_spritesheet_slider, self.min_time_between_spritesheet_input))
+        main_layout.addLayout(create_slider_group('Brightness', self.brightness_slider, self.brightness_input))
 
         main_layout.addLayout(create_slider_group('Cell Zoom Factor', self.cell_zoom_factor_slider, self.cell_zoom_factor_input))
         main_layout.addWidget(self.auto_exposure_checkbox)
+        main_layout.addWidget(self.auto_ev_checkbox)
         main_layout.addWidget(self.manual_exposure_checkbox)
 
         # Add checkboxes and button directly
@@ -235,20 +252,39 @@ class SliderOverlay(QWidget):
 
         self.setLayout(main_layout)
         self.setWindowTitle('Overlay Controls')
+
+    def get_initial_exposure_time(self):
+        """Fetch the initial exposure time from the backend."""
+        response = get_current_exposure_time()
+        if response:
+            try:
+                # Extract the numeric value from the response
+                exposure_time = int(response.split()[-1])  # Assumes the number is at the end of the string
+                return exposure_time
+            except ValueError as e:
+                print(f"Error parsing exposure time: {e}")
+                return 1  # Default to a minimum value if parsing fails
+        else:
+            return 1
+
+    def set_manual_exposure_mode(self):
+        """Set the camera to manual exposure mode."""
+        set_camera_control('autoExposureMode', 1)  # Set to manual exposure
+
     def toggle_auto_exposure(self, state):
         if state == Qt.Checked:
-            set_camera_control('autoExposureMode', 0)  # Auto exposure on
+            self.manual_exposure_checkbox.setChecked(False)
+            set_camera_control('autoExposureMode', 8)  # Auto exposure on
+        else:
+            set_camera_control('autoExposureMode', 1)  # Auto exposure off
+
+    def toggle_auto_ev(self, state):
+        config.auto_ev = (state == Qt.Checked)  # Save the auto EV state
 
     def toggle_manual_exposure(self, state):
         if state == Qt.Checked:
-            set_camera_control('autoExposureMode', 1)  # Manual exposure on
-
-    def sync_exposure_checkboxes(self):
-        """Ensure only one exposure mode checkbox is selected at a time."""
-        if self.auto_exposure_checkbox.isChecked():
-            self.manual_exposure_checkbox.setChecked(False)
-        elif self.manual_exposure_checkbox.isChecked():
             self.auto_exposure_checkbox.setChecked(False)
+            set_camera_control('autoExposureMode', 1)  # Manual exposure on
 
     def create_slider(self, min_value, max_value, default_value=None, step=1):
         slider = QSlider(Qt.Horizontal, self)
@@ -281,12 +317,6 @@ class SliderOverlay(QWidget):
 
     def decrement_input(self, slider):
         slider.setValue(slider.value() - slider.singleStep())
-
-    def toggle_auto_exposure(self, state):
-        if state == Qt.Checked:
-            set_camera_control('autoExposureMode', 0)  # Auto exposure on
-        else:
-            set_camera_control('autoExposureMode', 1)  # Auto exposure off
 
     def create_double_slider(self, min_value, max_value, default_value=None, step=0.1):
         slider = QSlider(Qt.Horizontal, self)
@@ -369,6 +399,8 @@ class SliderOverlay(QWidget):
         elif sender == self.gain_slider:
             self.gain_input.setText(str(sender.value()))
             set_camera_control('gain', sender.value())  # Call the backend function
+        elif sender == self.brightness_slider:
+            self.brightness_input.setText(str(sender.value()))
         elif sender == self.jump_threshold_slider:
             self.jump_threshold_input.setText(str(sender.value()))
         elif sender == self.min_face_size_slider:
@@ -429,6 +461,8 @@ class SliderOverlay(QWidget):
         elif sender == self.gain_input:
             self.gain_slider.setValue(int(value))
             set_camera_control('gain', int(value))  # Call the backend function
+        elif sender == self.brightness_input:
+            self.brightness_slider.setValue(int(value))
         elif sender == self.jump_threshold_input:
             self.jump_threshold_slider.setValue(int(value))
         elif sender == self.min_face_size_input:
@@ -492,8 +526,8 @@ class SliderOverlay(QWidget):
         config.auto_update = self.auto_update_checkbox.isChecked()
         config.show_saved_frame = self.show_saved_checkbox.isChecked()
         config.mirror = self.mirror_checkbox.isChecked()
-        config.auto_exposure_time = self.auto_exposure_time_slider.value()
         config.gain = self.gain_slider.value()
+        config.brightness = self.brightness_slider.value()
         config.jump_threshold = self.jump_threshold_slider.value()
         config.move_threshold = self.move_threshold_slider.value()
         config.min_num_ss_frames = self.min_num_ss_frames_slider.value()
@@ -503,7 +537,7 @@ class SliderOverlay(QWidget):
         config.min_face_size = self.min_face_size_slider.value()
         config.zoom_factor = self.cell_zoom_factor_slider.value() / 10.0  # Save the zoom factor
         config.confidence_score = self.confidence_score_slider.value() / 10.0
-        config.auto_exposure = self.auto_exposure_checkbox.isChecked()
+        config.auto_ev = self.auto_ev_checkbox.isChecked()  # Save the auto EV state
 
         # Retain the demo value from the previous configuration
         demo_value = getattr(config, 'demo', False)
@@ -526,6 +560,7 @@ class SliderOverlay(QWidget):
             config_file.write(f"auto_update = {config.auto_update}\n")
             config_file.write(f"show_saved_frame = {config.show_saved_frame}\n")
             config_file.write(f"gain = {config.gain}\n")
+            config_file.write(f"brightness = {config.brightness}\n")
             config_file.write(f"jump_threshold = {config.jump_threshold}\n")
             config_file.write(f"min_face_size = {config.min_face_size}\n")
             config_file.write(f"zoom_factor = {config.zoom_factor}\n")
@@ -536,6 +571,8 @@ class SliderOverlay(QWidget):
             config_file.write(f"min_num_ss_frames = {config.min_num_ss_frames}\n")
             config_file.write(f"max_num_rows_ss_frames = {config.max_num_rows_ss_frames}\n")
             config_file.write(f"min_time_between_spritesheet = {config.min_time_between_spritesheet}\n")
+            config_file.write(f"auto_ev = {config.auto_ev}\n")  # Write the auto EV state
+            config_file.write(f"version = {config.version}\n")  # Write the auto EV state
 
         # Emit signal to update the config
         self.config_changed.emit()
