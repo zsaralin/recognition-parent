@@ -371,31 +371,7 @@ class VideoProcessor(QThread):
         if frame is None or frame.size == 0:
             logger.error("Cannot resize an empty frame.")
             return None
-
-        # Get the original dimensions
-        h, w = frame.shape[:2]
-
-        # Calculate the scaling factor
-        scale_factor = min(size / w, size / h)
-
-        # Calculate new dimensions while maintaining the aspect ratio
-        new_w = int(w * scale_factor)
-        new_h = int(h * scale_factor)
-
-        # Resize the frame
-        resized_frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-
-        # Create a square frame of the desired size
-        square_frame = np.zeros((size, size, 3), dtype=np.uint8)
-
-        # Calculate the top-left corner to center the resized frame in the square frame
-        x_offset = (size - new_w) // 2
-        y_offset = (size - new_h) // 2
-
-        # Place the resized frame in the center of the square frame
-        square_frame[y_offset:y_offset + new_h, x_offset:x_offset + new_w] = resized_frame
-
-        return square_frame
+        return cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR)
 
     def convert_to_qpixmap(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

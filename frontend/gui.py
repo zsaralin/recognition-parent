@@ -104,8 +104,8 @@ class SliderOverlay(QWidget):
         self.update_int_input = self.create_input(5, 100, is_double=False)
         self.update_int_input.setText(str(config.update_int))
 
-        self.bbox_multiplier_slider = self.create_slider(5, 30, int(config.bbox_multiplier * 10))
-        self.bbox_multiplier_input = self.create_input(5, 30, is_double=False)
+        self.bbox_multiplier_slider = self.create_slider(5, 50, int(config.bbox_multiplier * 10))
+        self.bbox_multiplier_input = self.create_input(5, 50, is_double=False)
         self.bbox_multiplier_input.setText(str(int(config.bbox_multiplier * 10)))
 
         self.font_size_slider = self.create_double_slider(0.1, 3.0, config.font_size, step=0.1)
@@ -389,7 +389,7 @@ class SliderOverlay(QWidget):
         elif sender == self.middle_y_pos_slider:
             self.middle_y_pos_input.setText(str(sender.value()))
         elif sender == self.bbox_multiplier_slider:
-            self.bbox_multiplier_input.setText(str(sender.value() / 10))
+            self.bbox_multiplier_input.setText(str(sender.value()))
         elif sender == self.font_size_slider:
             self.font_size_input.setText(str(sender.value() / 10))
             self.font_size_changed.emit(sender.value() / 10)  # Emit the font size changed signal
