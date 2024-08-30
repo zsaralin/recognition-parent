@@ -206,8 +206,8 @@ class ImageStore:
         sub_images_with_reversed = sub_images + sub_images[::-1]
 
         # Create pixmaps for both sizes
-        standard_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
-        large_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, large_square_size)) for img in sub_images_with_reversed]
+        standard_pixmaps = [self.cv2_to_qpixmap(img, square_size) for img in sub_images_with_reversed]
+        large_pixmaps = [self.cv2_to_qpixmap(img, large_square_size) for img in sub_images_with_reversed]
 
         # Store both sets of images under their respective categories
         if subfolder_name not in self.preloaded_images:
