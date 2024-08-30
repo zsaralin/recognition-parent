@@ -371,7 +371,7 @@ class VideoProcessor(QThread):
         if frame is None or frame.size == 0:
             logger.error("Cannot resize an empty frame.")
             return None
-        return cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR)
+        return cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR) # INTER_LANCZOS4 , INTER_CUBIC
 
     def convert_to_qpixmap(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
