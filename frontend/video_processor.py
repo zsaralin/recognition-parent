@@ -11,7 +11,7 @@ from text_overlay import add_text_overlay
 import time
 from one_euro import OneEuroFilter
 import asyncio
-from backend_communicator import send_add_frame_request, send_no_face_detected_request, set_camera_control, get_current_exposure_time
+from backend_communicator import send_add_frame_request, send_no_face_detected_request, set_camera_control, get_camera_control
 
 class FrameCaptureThread(QThread):
     new_frame = pyqtSignal(np.ndarray)
@@ -144,7 +144,7 @@ class VideoProcessor(QThread):
             # Determine step size based on the brightness difference
             step_size = max(5, abs(brightness_difference) // 5)  # Larger steps for larger differences, minimum step of 5
 
-            current_exposure = self.get_current_exposure_time()
+            current_exposure = get_camera_control('absoluteExposureTime')
             print(f"Brightness difference: {brightness_difference}, Step size: {step_size}")
 
             if brightness_difference > 15 and current_exposure < 1200:  # Cap at 1200

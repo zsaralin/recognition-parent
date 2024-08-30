@@ -119,27 +119,24 @@ class ImageStore:
         num_images = int(filename.split('_')[-1].split('.')[0])
         return num_images
 
-    def resize_with_antialiasing(image, target_size):
-        # Upscale to a larger size first (e.g., 2x the target size)
-        upscaled_size = (target_size[0] * 2, target_size[1] * 2)
-        upscaled_image = cv2.resize(image, upscaled_size, interpolation=cv2.INTER_LANCZOS4)
-
-        # Downscale to the target size
-        downscaled_image = cv2.resize(upscaled_image, target_size, interpolation=cv2.INTER_AREA)
-
-        return downscaled_image
-
     def cv2_to_qpixmap(self, cv_img, square):
-        height, width, channel = cv_img.shape
-        bytes_per_line = channel * width
+        # Step 1: Convert to RGB
         cv_img_rgb = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
 
-        # Apply anti-aliasing during resizing
-        resized_image = self.resize_with_antialiasing(cv_img_rgb, (square, square))
+        # Step 2: Pre-process with bicubic interpolation
+        resized_img = cv2.resize(cv_img_rgb, (square, square), interpolation=cv2.INTER_CUBIC)
 
-        q_img = QImage(resized_image.data, resized_image.shape[1], resized_image.shape[0], bytes_per_line, QImage.Format_RGB888)
+        # Step 3: Convert to QImage
+        height, width, channel = resized_img.shape
+        bytes_per_line = channel * width
+        q_img = QImage(resized_img.data, width, height, bytes_per_line, QImage.Format_RGB888)
+
+        # Step 4: Convert to QPixmap and apply final scaling
         pixmap = QPixmap.fromImage(q_img)
-        return pixmap
+        scaled_pixmap = pixmap.scaled(square, square, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        return scaled_pixmap
+
     def get_sub_images(self, image_path, size_type='standard'):
         """
         Retrieve preloaded images by path and size type.
