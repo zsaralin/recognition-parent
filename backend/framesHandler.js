@@ -28,8 +28,12 @@ async function addFrame(frame, bbox) {
     if (frames.length >= maxFrames && !spritesheetCreated) {
         try {
             spritesheetCreated = true;
-            const filePath = await createSpritesheet(frames, bboxes);
-            return { success: !!filePath, filePath };
+            const result = await createSpritesheet(frames, bboxes);
+            if (result)
+            {
+                const {folderName, fileName} = result; // Use object destructuring instead
+                return {success: !!folderName, subfolder: folderName, filePath: fileName};
+            }
         } catch (error) {
             console.error('Error creating spritesheet:', error);
             throw error;

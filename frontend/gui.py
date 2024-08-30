@@ -212,8 +212,8 @@ class SliderOverlay(QWidget):
         self.manual_exposure_checkbox = QCheckBox('Manual Exposure', self)
         self.manual_exposure_checkbox.setFont(font)
 
-        self.manual_exposure_checkbox.setChecked(True)  # Start with manual exposure if auto is off
-        self.manual_exposure_checkbox.stateChanged.connect(self.toggle_manual_exposure)
+        self.auto_exposure_checkbox.setChecked(True)  # Start with manual exposure if auto is off
+        self.auto_exposure_checkbox.stateChanged.connect(self.toggle_auto_exposure)
 
         # Adding the groups to the main layout
         main_layout.addLayout(create_slider_group('Min GIF Delay', self.min_gif_delay_slider, self.min_gif_delay_input))

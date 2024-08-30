@@ -34,7 +34,7 @@ class ImageApp(QWidget):
 
         self.new_faces = NewFaces()
 
-        self.video_processor = VideoProcessor(self.new_faces, square_size=int(self.square_size * 3), callback=self.load_sprites)
+        self.video_processor = VideoProcessor(self.new_faces, square_size=int(self.square_size *3), callback=self.load_sprites)
         self.video_processor.frame_ready.connect(lambda pixmap: self.video_cell.setPixmap(pixmap))
         self.video_processor.start()
 
@@ -182,6 +182,7 @@ class ImageApp(QWidget):
         event.accept()
 
     def update_sprite_cells(self):
+
         for index, cell in enumerate(self.grid_cells[:-3]):  # Exclude special cells
             sprite = self.sprite_manager.get_sprite(index)
             if sprite:

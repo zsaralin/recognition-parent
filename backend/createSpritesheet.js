@@ -1,7 +1,7 @@
 const { Worker } = require('worker_threads');
 const path = require('path');
 
-let min_time_between_spritesheets = 1//1 * 60 * 1000; // 2 minutes in milliseconds
+let min_time_between_spritesheets = 1//1 * 30 * 1000; // 2 minutes in milliseconds
 let lastSpritesheetCreationTime = 0;
 let isWorkerBusy = false;
 let checkDriveCapacity = true;

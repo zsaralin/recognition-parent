@@ -328,7 +328,7 @@ class VideoProcessor(QThread):
             self.new_faces.set_cropped_frame(cropped_frame)
 
             if bbox and config.create_sprites and self.is_stable():
-                send_add_frame_request(resized_frame, (x, y, w, h))
+                send_add_frame_request(cropped_frame, (x, y, w, h))
 
             self.apply_text_overlay(resized_frame)  # Apply the current overlay
             self.display_fps(resized_frame)
@@ -371,7 +371,7 @@ class VideoProcessor(QThread):
         if frame is None or frame.size == 0:
             logger.error("Cannot resize an empty frame.")
             return None
-        return cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR) # INTER_LANCZOS4 , INTER_CUBIC
+        return cv2.resize(frame, (size, size), interpolation=cv2.INTER_AREA) # INTER_LANCZOS4 , INTER_CUBIC
 
     def convert_to_qpixmap(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

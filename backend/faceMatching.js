@@ -1,7 +1,6 @@
 const path = require('path');
 const fs = require('fs').promises;
 
-
 async function findSimilarImages(descriptor, numVids) {
     const baseDir = path.resolve('../databases/database0'); // Use absolute path for reliability
     const entries = await fs.readdir(baseDir, { withFileTypes: true });
@@ -43,13 +42,47 @@ async function findSimilarImages(descriptor, numVids) {
     // Sort images by distance
     images.sort((a, b) => a.distance - b.distance);
 
-    // Select the top `numVids` most similar images
-    const mostSimilar = images.slice(0, numVids);
+    // Select the top `numVids/2` most similar images
+    const mostSimilar = images.slice(0, Math.ceil(numVids / 2));
 
-    // Select the top `numVids` least similar images
-    const leastSimilar = images.slice(-numVids).reverse();
+    // Select the top `numVids/2` least similar images
+    const leastSimilar = images.slice(-Math.floor(numVids / 2)).reverse();
 
-    return { mostSimilar, leastSimilar };
+    let finalMostSimilar = [...mostSimilar];
+    let finalLeastSimilar = [...leastSimilar];
+
+    // Calculate how many more images are needed
+    const remainingImagesCount = numVids - (finalMostSimilar.length + finalLeastSimilar.length);
+
+    if (remainingImagesCount > 0) {
+        // Determine how many duplicates for each (most similar and least similar)
+        const duplicatesPerImage = Math.floor(remainingImagesCount / 2);
+        const extraDuplicates = remainingImagesCount % 2;
+
+        // Create duplicates with random distances
+        const mostSimilarDuplicates = Array.from({ length: duplicatesPerImage + extraDuplicates }, () => ({
+            ...mostSimilar[0],
+            distance: generateRandomDistance(mostSimilar[0].distance)
+        }));
+
+        const leastSimilarDuplicates = Array.from({ length: duplicatesPerImage }, () => ({
+            ...leastSimilar[0],
+            distance: generateRandomDistance(leastSimilar[0].distance)
+        }));
+
+        finalMostSimilar = finalMostSimilar.concat(mostSimilarDuplicates);
+        finalLeastSimilar = finalLeastSimilar.concat(leastSimilarDuplicates);
+    }
+
+    // Ensure that the total number of images is exactly numVids
+    finalMostSimilar = finalMostSimilar.slice(0, Math.ceil(numVids / 2));
+    finalLeastSimilar = finalLeastSimilar.slice(0, Math.floor(numVids / 2));
+    return { mostSimilar: finalMostSimilar, leastSimilar: finalLeastSimilar };
+}
+
+function generateRandomDistance(baseDistance) {
+    const variation = (Math.random() - 0.5) * 0.2; // +/- 10% variation
+    return baseDistance * (1 + variation);
 }
 
 function euclideanDistance(descriptor1, descriptor2) {

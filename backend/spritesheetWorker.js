@@ -53,7 +53,14 @@ async function createAndSaveSpritesheet(frames, checkDriveCapacity) {
         frames.map(async (frame, index) => {
             try {
                 const buffer = await sharp(frame)
-                    .resize(FRAME_WIDTH, FRAME_WIDTH)
+                    .resize({
+                        width: FRAME_WIDTH,
+                        height: FRAME_WIDTH,
+                        fit: 'inside', // Ensures the image fits within the specified dimensions
+                        kernel: sharp.kernel.lanczos3, // Use a higher quality resampling algorithm
+                    })
+                    .modulate({ saturation: 1.1 }) // Optional: Slightly enhance the color saturation
+                    .sharpen() // Apply sharpening after resize to reduce blur
                     .toBuffer();
 
                 const x = (index % FRAMES_PER_ROW) * FRAME_WIDTH;
