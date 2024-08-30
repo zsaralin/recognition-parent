@@ -69,11 +69,18 @@ class ImageApp(QWidget):
         self.setWindowTitle('Image Display App')
         self.setStyleSheet("background-color: black; border: none; margin: 0; padding: 0;")
 
-        # Get the primary screen
-        primary_screen = QApplication.primaryScreen()
+        # Get the list of screens
+        screens = QApplication.screens()
 
-        # Get the size of the primary screen
-        screen_size = primary_screen.size()
+        # Identify the secondary screen (on the left)
+        if len(screens) > 1:
+            secondary_screen = screens[1]
+        else:
+            secondary_screen = screens[0]
+
+        # Get the size of the secondary screen
+        screen_size = secondary_screen.size()
+        screen_geometry = secondary_screen.geometry()
         largest_screen_width = screen_size.width()
         largest_screen_height = screen_size.height()
 
@@ -82,7 +89,6 @@ class ImageApp(QWidget):
 
         self.num_cols = config.num_cols
         self.square_size = round(window_width / self.num_cols)
-
 
         self.num_rows = math.floor(window_height / self.square_size)
 
@@ -102,12 +108,17 @@ class ImageApp(QWidget):
 
         self.create_center_cells()
 
+        # Move the window to the secondary screen
+        self.move(screen_geometry.left(), screen_geometry.top())
+
         if not config.demo:
             self.setWindowFlags(Qt.FramelessWindowHint)
             self.showFullScreen()
         else:
-            self.setFixedSize(int(window_width), int(window_height))
-            self.show()
+            # self.setFixedSize(int(window_width), int(window_height))
+            # self.show()
+            self.setWindowFlags(Qt.FramelessWindowHint)
+            self.showFullScreen()
 
         QApplication.setOverrideCursor(Qt.BlankCursor)
 
