@@ -123,13 +123,13 @@ class ImageStore:
         # Step 1: Convert to RGB
         cv_img_rgb = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
 
-        # Step 2: Apply Gaussian blur to reduce jagged edges
-        blurred_img = cv2.GaussianBlur(cv_img_rgb, (5, 5), 0)
+        # Step 2: Apply anti-aliasing filter
+        cv_img_smooth = cv2.GaussianBlur(cv_img_rgb, (0, 0), sigmaX=1.5, sigmaY=1.5)
 
         # Step 3: Convert to QImage
-        height, width, channel = blurred_img.shape
+        height, width, channel = cv_img_smooth.shape
         bytes_per_line = channel * width
-        q_img = QImage(blurred_img.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        q_img = QImage(cv_img_smooth.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
         # Step 4: Convert to QPixmap and apply final scaling
         pixmap = QPixmap.fromImage(q_img)
