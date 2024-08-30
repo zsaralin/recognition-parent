@@ -81,7 +81,8 @@ class ImageApp(QWidget):
         window_height = largest_screen_height
 
         self.num_cols = config.num_cols
-        self.square_size = window_width // self.num_cols
+        self.square_size = round(window_width / self.num_cols)
+
 
         self.num_rows = math.floor(window_height / self.square_size)
 

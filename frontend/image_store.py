@@ -24,7 +24,7 @@ class ImageStore:
         screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
         largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
         window_width = largest_screen_width // 2 if config.demo else largest_screen_width
-        square_size = window_width // num_cols
+        square_size = round(window_width / num_cols)
         large_square_size = square_size * 3
 
         total_images = 0

@@ -141,22 +141,42 @@ class SpriteManager(QObject):
         return cv2.cvtColor(arr, cv2.COLOR_BGRA2BGR)
 
     def cv2_to_qpixmap(self, cv_img):
-        height, width, channel = cv_img.shape
-        bytes_per_line = 3 * width
-        qimage = QImage(cv_img.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        if cv_img.dtype != np.uint8:
+            cv_img = (cv_img * 255).astype(np.uint8)
+
+        if len(cv_img.shape) == 2:
+            h, w = cv_img.shape
+            cv_img = cv2.cvtColor(cv_img, cv2.COLOR_GRAY2RGB)
+        else:
+            h, w, _ = cv_img.shape
+            if cv_img.shape[2] == 4:
+                qimage_format = QImage.Format_RGBA8888
+            else:
+                cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+                qimage_format = QImage.Format_RGB888
+
+        bytes_per_line = 3 * w
+        qimage = QImage(cv_img.data, w, h, bytes_per_line, qimage_format)
         return QPixmap.fromImage(qimage)
 
     def preprocess_sprite(self, sprite):
         qimage = sprite.toImage()
-
         zoom_factor = config.zoom_factor
 
+        # Use a higher quality transformation method
         resized_qimage = qimage.scaled(
             int(qimage.width() * zoom_factor),
             int(qimage.height() * zoom_factor),
-            Qt.IgnoreAspectRatio,
+            Qt.KeepAspectRatio,  # Changed from IgnoreAspectRatio
             Qt.SmoothTransformation
         )
+
+        # Apply additional smoothing if needed
+        if zoom_factor > 1:
+            resized_qimage = resized_qimage.smoothScaled(
+                resized_qimage.width(),
+                resized_qimage.height()
+            )
 
         return QPixmap.fromImage(resized_qimage)
 
