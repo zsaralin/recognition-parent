@@ -40,7 +40,7 @@ class ImageStore:
         # Preload images
         for root, dirs, files in sorted(os.walk(base_dir), reverse=True):  # Sort directories in reverse order
             dirs.sort(reverse=True)  # Ensure directories are processed in reverse order
-            files.sort(reverse=True)  # Sort files in reverse order
+            files.sort(reverse=True)  # Sort files setin reverse order
 
             parent_dir = os.path.basename(os.path.dirname(root))
 
@@ -120,8 +120,19 @@ class ImageStore:
         return num_images
 
     def cv2_to_qpixmap(self, cv_img, square):
-        # Step 1: Convert to RGB
+
+            # Step 1: Convert to RGB
         cv_img_rgb = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+
+    #     cv_img_resized = cv2.resize(cv_img_rgb, (square, square), interpolation=cv2.INTER_LANCZOS4)
+    #
+    # # Convert to QImage
+    #     height, width, channel = cv_img_resized.shape
+    #     bytes_per_line = channel * width
+    #     q_img = QImage(cv_img_resized.data, width, height, bytes_per_line, QImage.Format_RGB888)
+    #
+    #     # Convert to QPixmap
+    #     pixmap = QPixmap.fromImage(q_img)
         # Step 3: Convert to QImage
         height, width, channel = cv_img_rgb.shape
         bytes_per_line = channel * width
