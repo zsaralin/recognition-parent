@@ -119,43 +119,27 @@ class ImageStore:
         num_images = int(filename.split('_')[-1].split('.')[0])
         return num_images
 
-    def resize_to_square(self, image, size):
-        if self.zoom_factor == 1:
-            # If zoom factor is 1, just resize the image to the square size directly
-            return cv2.resize(image, (size, size), interpolation=cv2.INTER_AREA)
+    def resize_with_antialiasing(image, target_size):
+        # Upscale to a larger size first (e.g., 2x the target size)
+        upscaled_size = (target_size[0] * 2, target_size[1] * 2)
+        upscaled_image = cv2.resize(image, upscaled_size, interpolation=cv2.INTER_LANCZOS4)
 
-        # Calculate the new size based on the zoom factor
-        zoomed_size = int(size * self.zoom_factor)
+        # Downscale to the target size
+        downscaled_image = cv2.resize(upscaled_image, target_size, interpolation=cv2.INTER_AREA)
 
-        # Calculate the center crop area
-        height, width, _ = image.shape
-        center_x, center_y = width // 2, height // 2
-        half_zoomed_size = zoomed_size // 2
-
-        # Crop the image around the center
-        cropped_image = image[
-                        max(center_y - half_zoomed_size, 0):min(center_y + half_zoomed_size, height),
-                        max(center_x - half_zoomed_size, 0):min(center_x + half_zoomed_size, width)
-                        ]
-
-        # Resize the cropped image back to the square size
-        resized_image = cv2.resize(cropped_image, (size, size), interpolation=cv2.INTER_AREA)
-
-        # Calculate and store the compression ratio
-        compression_ratio = (cropped_image.shape[0] / size) * 100
-        self.compression_ratios.append(compression_ratio)
-
-        return resized_image
+        return downscaled_image
 
     def cv2_to_qpixmap(self, cv_img, square):
         height, width, channel = cv_img.shape
         bytes_per_line = channel * width
         cv_img_rgb = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-        q_img = QImage(cv_img_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        pixmap = QPixmap.fromImage(q_img)
-        scaled_pixmap = pixmap.scaled(square, square, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        return scaled_pixmap
 
+        # Apply anti-aliasing during resizing
+        resized_image = self.resize_with_antialiasing(cv_img_rgb, (square, square))
+
+        q_img = QImage(resized_image.data, resized_image.shape[1], resized_image.shape[0], bytes_per_line, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_img)
+        return pixmap
     def get_sub_images(self, image_path, size_type='standard'):
         """
         Retrieve preloaded images by path and size type.
