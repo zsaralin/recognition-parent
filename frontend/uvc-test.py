@@ -73,14 +73,12 @@ class CameraApp(QWidget):
         self.brightness_label = QLabel("Brightness", self)
         self.exposure_label = QLabel("Exposure Time", self)
         self.white_balance_label = QLabel("White Balance", self)
-        self.hue_label = QLabel("Hue", self)
         self.saturation_label = QLabel("Saturation", self)
 
         # Sliders for brightness, exposure time, white balance, hue, and saturation
         self.brightness_slider = QSlider(Qt.Horizontal, self)
         self.exposure_slider = QSlider(Qt.Horizontal, self)
         self.white_balance_slider = QSlider(Qt.Horizontal, self)
-        self.hue_slider = QSlider(Qt.Horizontal, self)
         self.saturation_slider = QSlider(Qt.Horizontal, self)
 
         # Set range for exposure time slider
@@ -94,8 +92,6 @@ class CameraApp(QWidget):
         # Set ranges for white balance, hue, and saturation
         self.white_balance_slider.setRange(2000, 6500)  # Example range for white balance (in Kelvin)
         self.white_balance_slider.setValue(4500)  # Default value
-        self.hue_slider.setRange(-180, 180)  # Hue range in degrees
-        self.hue_slider.setValue(0)  # Default value
         self.saturation_slider.setRange(0, 255)  # Saturation range
         self.saturation_slider.setValue(128)  # Default value
 
@@ -284,13 +280,8 @@ class CameraApp(QWidget):
         """Handles changes in the white balance slider and sends the value to the backend."""
         print(f"White Balance set to: {value}K")
         set_camera_control('autoWhiteBalance', 'manual')
-
         set_camera_control('whiteBalanceTemperature', value)
 
-    def on_hue_changed(self, value):
-        """Handles changes in the hue slider and sends the value to the backend."""
-        print(f"Hue set to: {value}")
-        set_camera_control('hue', value)
 
     def on_saturation_changed(self, value):
         """Handles changes in the saturation slider and sends the value to the backend."""

@@ -52,16 +52,15 @@ function setCameraControl(controlName, value, callback) {
     }
 }
 
-function getCurrentExposureTime(callback) {
-    camera.get('absoluteExposureTime', function(err, value) {
+function getCameraControl(controlName, callback) {
+    camera.get(controlName, function(err, value) {
         if (err) {
-            console.error("Error getting current exposure time:", err);
+            console.error(`Error getting ${controlName}:`, err);
             if (callback) callback(err, null);
         } else {
-            console.log(`Current exposure time is ${value}.`);
+            console.log(`Current ${controlName} is ${value}.`);
             if (callback) callback(null, value);
         }
     });
 }
-
-module.exports = { setCameraControl, getCurrentExposureTime };
+module.exports = { setCameraControl, getCameraControl };

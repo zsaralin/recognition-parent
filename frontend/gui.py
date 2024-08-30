@@ -1,8 +1,8 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QLineEdit, QPushButton, QCheckBox, QHBoxLayout
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
-from backend_communicator import set_camera_control, get_current_exposure_time, update_max_frames, update_min_frames, update_min_time_between_frames
-import config 
+from backend_communicator import set_camera_control, get_camera_control, update_max_frames, update_min_frames, update_min_time_between_frames
+import config
 
 class SliderOverlay(QWidget):
     config_changed = pyqtSignal()  # Signal to notify when config changes
@@ -10,10 +10,12 @@ class SliderOverlay(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.Tool | Qt.FramelessWindowHint)
-        self.current_exposure = self.get_initial_exposure_time()  # Get initial exposure time
+        self.current_exposure = self.get_initial_camera_control('absoluteExposureTime')  # Get initial exposure time
+        self.current_white_balance = self.get_initial_camera_control('whiteBalanceTemperature')  # Get initial white balance
+        self.current_saturation = self.get_initial_camera_control('saturation')  # Get initial saturation
 
         self.initUI()
-        self.setFixedSize(500, 600)  # Set a fixed size for the window with extra width and height
+        self.setFixedSize(500, 700)  # Adjust size to accommodate more controls
         self.move(10, 10)  # Move the window to the top-left corner of the screen
         self.is_visible = True  # Variable to track if the window is shown
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -119,6 +121,14 @@ class SliderOverlay(QWidget):
         self.gain_slider = self.create_slider(1, 128, int(config.gain))
         self.gain_input = self.create_input(1, 128, is_double=False)
         self.gain_input.setText(str(int(config.gain)))
+
+        self.white_balance_slider = self.create_slider(2000, 8000, self.current_white_balance)
+        self.white_balance_input = self.create_input(2000, 8000, is_double=False)
+        self.white_balance_input.setText(str(int(self.current_white_balance)))
+
+        self.saturation_slider = self.create_slider(0, 255, self.current_saturation)
+        self.saturation_input = self.create_input(0, 255, is_double=False)
+        self.saturation_input.setText(str(int(self.current_saturation)))
 
         self.jump_threshold_slider = self.create_slider(0, 200, config.jump_threshold)
         self.jump_threshold_input = self.create_input(0, 200, is_double=False)
@@ -227,6 +237,8 @@ class SliderOverlay(QWidget):
         main_layout.addLayout(create_slider_group('Font Size', self.font_size_slider, self.font_size_input))
         main_layout.addLayout(create_slider_group('Rotation Angle', self.rotation_angle_slider, self.rotation_angle_input))
         main_layout.addLayout(create_slider_group('Auto Exposure Time', self.auto_exposure_time_slider, self.auto_exposure_time_input))
+        main_layout.addLayout(create_slider_group('White Balance', self.white_balance_slider, self.white_balance_input))
+        main_layout.addLayout(create_slider_group('Saturation', self.saturation_slider, self.saturation_input))
         main_layout.addLayout(create_slider_group('Gain', self.gain_slider, self.gain_input))
         main_layout.addLayout(create_slider_group('Jump Threshold', self.jump_threshold_slider, self.jump_threshold_input))
         main_layout.addLayout(create_slider_group('Min Face Size', self.min_face_size_slider, self.min_face_size_input))
@@ -253,16 +265,15 @@ class SliderOverlay(QWidget):
         self.setLayout(main_layout)
         self.setWindowTitle('Overlay Controls')
 
-    def get_initial_exposure_time(self):
-        """Fetch the initial exposure time from the backend."""
-        response = get_current_exposure_time()
+    def get_initial_camera_control(self, control_name):
+        """Fetch the initial value for a camera control from the backend."""
+        response = get_camera_control(control_name)
         if response:
             try:
-                # Extract the numeric value from the response
-                exposure_time = int(response.split()[-1])  # Assumes the number is at the end of the string
-                return exposure_time
+                value = int(response.split()[-1])  # Assumes the value is at the end of the string
+                return value
             except ValueError as e:
-                print(f"Error parsing exposure time: {e}")
+                print(f"Error parsing {control_name}: {e}")
                 return 1  # Default to a minimum value if parsing fails
         else:
             return 1
@@ -285,6 +296,12 @@ class SliderOverlay(QWidget):
         if state == Qt.Checked:
             self.auto_exposure_checkbox.setChecked(False)
             set_camera_control('autoExposureMode', 1)  # Manual exposure on
+
+    def on_white_balance_changed(self, value):
+        """Handles changes in the white balance slider and sends the value to the backend."""
+        print(f"White Balance set to: {value}K")
+        set_camera_control('autoWhiteBalance', 'manual')
+        set_camera_control('whiteBalanceTemperature', value)
 
     def create_slider(self, min_value, max_value, default_value=None, step=1):
         slider = QSlider(Qt.Horizontal, self)
@@ -396,6 +413,12 @@ class SliderOverlay(QWidget):
         elif sender == self.auto_exposure_time_slider:
             self.auto_exposure_time_input.setText(str(sender.value()))
             set_camera_control('absoluteExposureTime', sender.value())  # Call the backend function
+        elif sender == self.white_balance_slider:
+            self.white_balance_input.setText(str(sender.value()))
+            self.on_white_balance_changed(sender.value())
+        elif sender == self.saturation_slider:
+            self.saturation_input.setText(str(sender.value()))
+            set_camera_control('saturation', sender.value())  # Call the backend function
         elif sender == self.gain_slider:
             self.gain_input.setText(str(sender.value()))
             set_camera_control('gain', sender.value())  # Call the backend function
@@ -457,7 +480,13 @@ class SliderOverlay(QWidget):
             self.font_size_changed.emit(value)  # Emit the font size changed signal
         elif sender == self.auto_exposure_time_input:
             self.auto_exposure_time_slider.setValue(int(value))
-            set_camera_control('auto_exposure_time', int(value))  # Call the backend function
+            set_camera_control('absoluteExposureTime', int(value))  # Call the backend function
+        elif sender == self.white_balance_input:
+            self.white_balance_slider.setValue(int(value))
+            self.on_white_balance_changed(int(value))
+        elif sender == self.saturation_input:
+            self.saturation_slider.setValue(int(value))
+            set_camera_control('saturation', int(value))  # Call the backend function
         elif sender == self.gain_input:
             self.gain_slider.setValue(int(value))
             set_camera_control('gain', int(value))  # Call the backend function

@@ -63,18 +63,21 @@ class ImageApp(QWidget):
             self.sprite_manager.load_sprites(most_similar, least_similar)
         else:
             logger.error("Failed to fetch initial random images.")
-
     def initUI(self):
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.setWindowTitle('Image Display App')
         self.setStyleSheet("background-color: black; border: none; margin: 0; padding: 0;")
 
-        screen_sizes = [(screen.size().width(), screen.size().height()) for screen in QApplication.screens()]
-        largest_screen_width, largest_screen_height = min(screen_sizes, key=lambda s: s[0] * s[1])
+        # Get the primary screen
+        primary_screen = QApplication.primaryScreen()
+
+        # Get the size of the primary screen
+        screen_size = primary_screen.size()
+        largest_screen_width = screen_size.width()
+        largest_screen_height = screen_size.height()
 
         window_width = largest_screen_width // 2 if config.demo else largest_screen_width
-
         window_height = largest_screen_height
 
         self.num_cols = config.num_cols
