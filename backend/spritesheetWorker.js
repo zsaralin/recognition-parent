@@ -124,7 +124,7 @@ async function saveSpritesheet(spritesheetBuffer, totalFrames, localRecordingsFo
 
     await fs.mkdir(spritesheetFolderPath, { recursive: true });
 
-    const fileName = `${totalFrames}.${FRAME_WIDTH}.${FRAME_WIDTH}.jpg`;
+    const fileName = `${totalFrames}.${FRAME_WIDTH}.${FRAME_WIDTH}.png`;
     const filePath = path.join(spritesheetFolderPath, fileName);
 
     await fs.writeFile(filePath, spritesheetBuffer);

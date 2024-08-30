@@ -8,7 +8,6 @@ import psutil
 from concurrent.futures import ThreadPoolExecutor
 import shutil
 from PyQt5.QtCore import Qt
-import numpy as np
 class ImageStore:
     def __init__(self):
         self.preloaded_images = {}
@@ -119,43 +118,20 @@ class ImageStore:
         # Extract the number from the filename assuming the format is like "image_50.png"
         num_images = int(filename.split('_')[-1].split('.')[0])
         return num_images
-    def high_quality_scale(self, image, target_size):
-        # Step 1: Supersample the image
-        scale_factor = 2
-        h, w = image.shape[:2]
-        image_large = cv2.resize(image, (w * scale_factor, h * scale_factor), interpolation=cv2.INTER_CUBIC)
-
-        # Step 2: Apply sharpening
-        kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
-        image_sharp = cv2.filter2D(image_large, -1, kernel)
-
-        # Step 3: Apply slight Gaussian blur to reduce potential artifacts
-        image_smooth = cv2.GaussianBlur(image_sharp, (0, 0), sigmaX=0.5, sigmaY=0.5)
-
-        # Step 4: Scale down to target size using Lanczos interpolation
-        image_scaled = cv2.resize(image_smooth, target_size, interpolation=cv2.INTER_LANCZOS4)
-
-        return image_scaled
 
     def cv2_to_qpixmap(self, cv_img, square):
-        # Apply high-quality scaling
-        scaled_img = self.high_quality_scale(cv_img, (square, square))
-
-        # Convert to RGB (if not already)
-        if len(scaled_img.shape) == 2:  # Grayscale
-            scaled_img_rgb = cv2.cvtColor(scaled_img, cv2.COLOR_GRAY2RGB)
-        else:  # Color
-            scaled_img_rgb = cv2.cvtColor(scaled_img, cv2.COLOR_BGR2RGB)
-
-        # Convert to QImage
-        height, width, channel = scaled_img_rgb.shape
+        # Step 1: Convert to RGB
+        cv_img_rgb = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        # Step 3: Convert to QImage
+        height, width, channel = cv_img_rgb.shape
         bytes_per_line = channel * width
-        q_img = QImage(scaled_img_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        q_img = QImage(cv_img_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
-        # Convert to QPixmap
+        # Step 4: Convert to QPixmap and apply final scaling
         pixmap = QPixmap.fromImage(q_img)
+        scaled_pixmap = pixmap.scaled(square, square, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
-        return pixmap
+        return scaled_pixmap
 
     def get_sub_images(self, image_path, size_type='standard'):
         """
