@@ -121,7 +121,7 @@ class ImageStore:
     def resize_to_square(self, image, size):
         if self.zoom_factor == 1:
             # If zoom factor is 1, just resize the image to the square size directly
-            return cv2.resize(image, (size, size), interpolation=cv2.INTER_LINEAR)
+            return cv2.resize(image, (size, size), interpolation=cv2.INTER_AREA)
 
         # Calculate the new size based on the zoom factor
         zoomed_size = int(size * self.zoom_factor)
@@ -138,7 +138,7 @@ class ImageStore:
                         ]
 
         # Resize the cropped image back to the square size
-        resized_image = cv2.resize(cropped_image, (size, size), interpolation=cv2.INTER_LINEAR)
+        resized_image = cv2.resize(cropped_image, (size, size), interpolation=cv2.INTER_AREA)
 
         # Calculate and store the compression ratio
         compression_ratio = (cropped_image.shape[0] / size) * 100

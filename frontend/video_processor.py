@@ -333,8 +333,9 @@ class VideoProcessor(QThread):
             self.apply_text_overlay(resized_frame)  # Apply the current overlay
             self.display_fps(resized_frame)
             pixmap = self.convert_to_qpixmap(resized_frame)
+            scaled_pixmap = pixmap.scaled(self.square_size, self.square_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
-            self.frame_ready.emit(pixmap)
+            self.frame_ready.emit(scaled_pixmap)
             self.cropped_frame_ready.emit(cropped_frame)
 
             self.last_cropped_frame = cropped_frame
