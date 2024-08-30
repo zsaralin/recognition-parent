@@ -124,18 +124,17 @@ class ImageStore:
         cv_img_rgb = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
 
         # Step 2: Pre-process with bicubic interpolation
-        resized_img = cv2.resize(cv_img_rgb, (square, square), interpolation=cv2.INTER_CUBIC)
+        resized_img = cv2.resize(cv_img_rgb, (square, square), interpolation=cv2.INTER_AREA)
 
         # Step 3: Convert to QImage
         height, width, channel = resized_img.shape
         bytes_per_line = channel * width
         q_img = QImage(resized_img.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
-        # Step 4: Convert to QPixmap and apply final scaling
+        # Step 4: Convert to QPixmap without additional scaling
         pixmap = QPixmap.fromImage(q_img)
-        scaled_pixmap = pixmap.scaled(square, square, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
-        return scaled_pixmap
+        return pixmap
 
     def get_sub_images(self, image_path, size_type='standard'):
         """
