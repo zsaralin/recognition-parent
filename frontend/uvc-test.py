@@ -283,6 +283,8 @@ class CameraApp(QWidget):
     def on_white_balance_changed(self, value):
         """Handles changes in the white balance slider and sends the value to the backend."""
         print(f"White Balance set to: {value}K")
+        set_camera_control('autoWhiteBalance', 'manual')
+
         set_camera_control('whiteBalanceTemperature', value)
 
     def on_hue_changed(self, value):
