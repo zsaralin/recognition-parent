@@ -7,7 +7,7 @@ import config
 import psutil
 from concurrent.futures import ThreadPoolExecutor
 import shutil
-
+from PyQt5.QtCore import Qt
 class ImageStore:
     def __init__(self):
         self.preloaded_images = {}
@@ -53,8 +53,9 @@ class ImageStore:
                         sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
                         sub_images_with_reversed = sub_images + sub_images[::-1]
 
-                        standard_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, square_size)) for img in sub_images_with_reversed]
-                        large_pixmaps = [self.cv2_to_qpixmap(self.resize_to_square(img, large_square_size)) for img in sub_images_with_reversed]
+                        standard_pixmaps = [self.cv2_to_qpixmap(img, square_size) for img in sub_images_with_reversed]
+                        large_pixmaps = [self.cv2_to_qpixmap(img, large_square_size) for img in sub_images_with_reversed]
+
 
                         self.preloaded_images[parent_dir] = {
                             'standard': standard_pixmaps,
@@ -146,12 +147,14 @@ class ImageStore:
 
         return resized_image
 
-    def cv2_to_qpixmap(self, cv_img):
+    def cv2_to_qpixmap(self, cv_img, square):
         height, width, channel = cv_img.shape
         bytes_per_line = channel * width
         cv_img_rgb = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
         q_img = QImage(cv_img_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        return QPixmap.fromImage(q_img)
+        pixmap = QPixmap.fromImage(q_img)
+        scaled_pixmap = pixmap.scaled(square, square, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        return scaled_pixmap
 
     def get_sub_images(self, image_path, size_type='standard'):
         """
