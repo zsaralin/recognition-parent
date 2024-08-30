@@ -37,7 +37,6 @@ class CameraApp(QWidget):
 
         # Initial values
         self.target_brightness = 100
-
     def initUI(self):
         screen = QApplication.primaryScreen().availableGeometry()
         screen_width = screen.width()
@@ -73,18 +72,32 @@ class CameraApp(QWidget):
         # Labels for sliders
         self.brightness_label = QLabel("Brightness", self)
         self.exposure_label = QLabel("Exposure Time", self)
+        self.white_balance_label = QLabel("White Balance", self)
+        self.hue_label = QLabel("Hue", self)
+        self.saturation_label = QLabel("Saturation", self)
 
-        # Sliders for brightness and exposure time
+        # Sliders for brightness, exposure time, white balance, hue, and saturation
         self.brightness_slider = QSlider(Qt.Horizontal, self)
         self.exposure_slider = QSlider(Qt.Horizontal, self)
+        self.white_balance_slider = QSlider(Qt.Horizontal, self)
+        self.hue_slider = QSlider(Qt.Horizontal, self)
+        self.saturation_slider = QSlider(Qt.Horizontal, self)
 
-        # Set range for exposure time slider (example range; adjust as needed)
-        self.exposure_slider.setRange(1, 1200)  # Represents 1 to 10,000 (example values for exposure time)
-        self.exposure_slider.setValue(self.current_exposure)  # Set the initial value to the current exposure time
+        # Set range for exposure time slider
+        self.exposure_slider.setRange(1, 1200)
+        self.exposure_slider.setValue(self.current_exposure)
 
         # Set range for brightness slider
         self.brightness_slider.setRange(50, 200)
         self.brightness_slider.setValue(100)  # Default to 100
+
+        # Set ranges for white balance, hue, and saturation
+        self.white_balance_slider.setRange(2000, 6500)  # Example range for white balance (in Kelvin)
+        self.white_balance_slider.setValue(4500)  # Default value
+        self.hue_slider.setRange(-180, 180)  # Hue range in degrees
+        self.hue_slider.setValue(0)  # Default value
+        self.saturation_slider.setRange(0, 255)  # Saturation range
+        self.saturation_slider.setValue(128)  # Default value
 
         # Connect the signals to the functions
         self.auto_exposure_checkbox.toggled.connect(self.on_auto_exposure_toggled)
@@ -92,6 +105,9 @@ class CameraApp(QWidget):
         self.exposure_slider.valueChanged.connect(self.on_exposure_slider_changed)
         self.auto_ev_checkbox.toggled.connect(self.on_auto_ev_toggled)
         self.brightness_slider.valueChanged.connect(self.on_brightness_slider_changed)
+        self.white_balance_slider.valueChanged.connect(self.on_white_balance_changed)
+        self.hue_slider.valueChanged.connect(self.on_hue_changed)
+        self.saturation_slider.valueChanged.connect(self.on_saturation_changed)
 
         # Disable Auto EV checkbox and sliders initially
         self.auto_ev_checkbox.setEnabled(False)
@@ -105,6 +121,12 @@ class CameraApp(QWidget):
         checkbox_layout.addWidget(self.auto_ev_checkbox)
         checkbox_layout.addWidget(self.brightness_label)
         checkbox_layout.addWidget(self.brightness_slider)
+        checkbox_layout.addWidget(self.white_balance_label)
+        checkbox_layout.addWidget(self.white_balance_slider)
+        checkbox_layout.addWidget(self.hue_label)
+        checkbox_layout.addWidget(self.hue_slider)
+        checkbox_layout.addWidget(self.saturation_label)
+        checkbox_layout.addWidget(self.saturation_slider)
 
         # Spacer to push content to the top
         checkbox_layout.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding))
@@ -258,6 +280,20 @@ class CameraApp(QWidget):
         self.brightness_slider.setEnabled(enabled and self.auto_ev_checkbox.isChecked())
         self.exposure_slider.setEnabled(enabled and not self.auto_ev_checkbox.isChecked())
 
+    def on_white_balance_changed(self, value):
+        """Handles changes in the white balance slider and sends the value to the backend."""
+        print(f"White Balance set to: {value}K")
+        set_camera_control('whiteBalanceTemperature', value)
+
+    def on_hue_changed(self, value):
+        """Handles changes in the hue slider and sends the value to the backend."""
+        print(f"Hue set to: {value}")
+        set_camera_control('hue', value)
+
+    def on_saturation_changed(self, value):
+        """Handles changes in the saturation slider and sends the value to the backend."""
+        print(f"Saturation set to: {value}")
+        set_camera_control('saturation', value)
     def closeEvent(self, event):
         self.cap.release()
 
