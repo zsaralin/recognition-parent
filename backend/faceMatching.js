@@ -43,10 +43,10 @@ async function findSimilarImages(descriptor, numVids) {
     images.sort((a, b) => a.distance - b.distance);
 
     // Select the top `numVids/2` most similar images
-    const mostSimilar = images.slice(0, Math.ceil(numVids / 2));
+    let mostSimilar = images.slice(0, Math.ceil(numVids / 2));
 
     // Select the top `numVids/2` least similar images
-    const leastSimilar = images.slice(-Math.floor(numVids / 2)).reverse();
+    let leastSimilar = images.slice(-Math.floor(numVids / 2)).reverse();
 
     let finalMostSimilar = [...mostSimilar];
     let finalLeastSimilar = [...leastSimilar];
@@ -56,19 +56,14 @@ async function findSimilarImages(descriptor, numVids) {
 
     if (remainingImagesCount > 0) {
         // Determine how many duplicates for each (most similar and least similar)
-        const duplicatesPerImage = Math.floor(remainingImagesCount / 2);
-        const extraDuplicates = remainingImagesCount % 2;
+        const duplicatesForMost = Math.floor(remainingImagesCount / 2);
+        const duplicatesForLeast = remainingImagesCount - duplicatesForMost; // Remaining goes to least similar
 
-        // Create duplicates with random distances
-        const mostSimilarDuplicates = Array.from({ length: duplicatesPerImage + extraDuplicates }, () => ({
-            ...mostSimilar[0],
-            distance: generateRandomDistance(mostSimilar[0].distance)
-        }));
+        // Distribute duplicates among available most similar images
+        const mostSimilarDuplicates = distributeDuplicates(mostSimilar, duplicatesForMost);
 
-        const leastSimilarDuplicates = Array.from({ length: duplicatesPerImage }, () => ({
-            ...leastSimilar[0],
-            distance: generateRandomDistance(leastSimilar[0].distance)
-        }));
+        // Distribute duplicates among available least similar images
+        const leastSimilarDuplicates = distributeDuplicates(leastSimilar, duplicatesForLeast);
 
         finalMostSimilar = finalMostSimilar.concat(mostSimilarDuplicates);
         finalLeastSimilar = finalLeastSimilar.concat(leastSimilarDuplicates);
@@ -77,7 +72,20 @@ async function findSimilarImages(descriptor, numVids) {
     // Ensure that the total number of images is exactly numVids
     finalMostSimilar = finalMostSimilar.slice(0, Math.ceil(numVids / 2));
     finalLeastSimilar = finalLeastSimilar.slice(0, Math.floor(numVids / 2));
+
     return { mostSimilar: finalMostSimilar, leastSimilar: finalLeastSimilar };
+}
+
+function distributeDuplicates(imageArray, numberOfDuplicates) {
+    const duplicates = [];
+    for (let i = 0; i < numberOfDuplicates; i++) {
+        const imageIndex = i % imageArray.length;
+        duplicates.push({
+            ...imageArray[imageIndex],
+            distance: generateRandomDistance(imageArray[imageIndex].distance),
+        });
+    }
+    return duplicates;
 }
 
 function generateRandomDistance(baseDistance) {
