@@ -23,10 +23,24 @@ class ImageStore:
         self.base_dir = base_dir
         logger.info('Starting preload images')
 
-        screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
-        largest_screen_width, largest_screen_height = max(screen_sizes, key=lambda s: s[0] * s[1])
+        # Get the list of screens
+        screens = app.screens()
+
+        # Identify the secondary screen (on the left)
+        if len(screens) > 1:
+            secondary_screen = screens[1]
+        else:
+            secondary_screen = screens[0]
+
+        # Get the size of the secondary screen
+        screen_size = secondary_screen.size()
+        screen_geometry = secondary_screen.geometry()
+        largest_screen_width = screen_size.width()
+        largest_screen_height = screen_size.height()
+
         window_width = largest_screen_width // 2 if config.demo else largest_screen_width
-        square_size = round(window_width / num_cols)
+        window_height = largest_screen_height
+        square_size = round(window_width / config.num_cols)
         large_square_size = square_size * 3
 
         total_images = 0
