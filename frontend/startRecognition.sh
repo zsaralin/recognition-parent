@@ -1,14 +1,21 @@
 #!/bin/bash
 
 # Delay for 20 seconds
-sleep 20
+sleep 10
+
+# Source nvm script to make nvm command available
+export NVM_DIR="$HOME/.nvm"
+# This loads nvm
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 # Change directory to the backend folder
 cd ~/Desktop/recognition/recognition-parent/backend &
 cd ~/Desktop/recognition/recognition-parent &
-cd ~/Desktop/recognition/recognition-parent/backend
+cd ~/Desktop/recognition/recognition-parent/backend 
 
 # Start the Node.js server
+nvm use 16
+
 /opt/homebrew/bin/node server.js &
 
 # Wait for 5 seconds

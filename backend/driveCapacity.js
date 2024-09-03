@@ -34,12 +34,11 @@ class DriveCapacity {
     }
 
     async checkCapacity(maxUsed) {
-        // const usage = await this.myExec('df -H /');
-        // const usedPercentage = this.extractUsedPercentage(usage);
-        // const tooFull = usedPercentage >= maxUsed;
-        // console.log(`Used capacity % = ${usedPercentage}, too full = ${tooFull}`);
-        // return tooFull;
-        return false;
+        const usage = await this.myExec('df -H /');
+        const usedPercentage = this.extractUsedPercentage(usage);
+        const tooFull = usedPercentage >= maxUsed;
+        console.log(`Used capacity % = ${usedPercentage}, too full = ${tooFull}`);
+        return tooFull;
     }
 
     extractUsedPercentage(usage) {

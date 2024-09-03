@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QLineEdit, QPushButton, QCheckBox, QHBoxLayout
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont
+from PyQt5.QtWidgets import QApplication
 from backend_communicator import set_camera_control, get_camera_control, update_max_frames, update_min_frames, update_min_time_between_frames
 import config
 
@@ -16,7 +17,19 @@ class SliderOverlay(QWidget):
 
         self.initUI()
         self.setFixedSize(500, 700)  # Adjust size to accommodate more controls
-        self.move(10, 10)  # Move the window to the top-left corner of the screen
+        screens = QApplication.screens()
+
+        # Identify the secondary screen (on the left)
+        if len(screens) > 1:
+            secondary_screen = screens[1]
+        else:
+            secondary_screen = screens[0]
+
+        # Get the screen geometry
+        screen_geometry = secondary_screen.geometry()
+
+        # Position the SliderOverlay on the secondary screen
+        self.move(screen_geometry.left() + 10, screen_geometry.top() + 10)
         self.is_visible = True  # Variable to track if the window is shown
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlag(Qt.WindowStaysOnTopHint)
@@ -28,7 +41,7 @@ class SliderOverlay(QWidget):
 
         # Set manual exposure mode by default
         self.set_manual_exposure_mode()
-
+        set_camera_control("absoluteExposureTime", 140)
     def initUI(self):
         wrapper = QWidget()
         wrapper.setStyleSheet("background-color: lightpink; padding: 5px;")
@@ -122,8 +135,8 @@ class SliderOverlay(QWidget):
         self.gain_input = self.create_input(1, 128, is_double=False)
         self.gain_input.setText(str(int(config.gain)))
 
-        self.white_balance_slider = self.create_slider(2000, 8000, self.current_white_balance)
-        self.white_balance_input = self.create_input(2000, 8000, is_double=False)
+        self.white_balance_slider = self.create_slider(0, 8000, self.current_white_balance)
+        self.white_balance_input = self.create_input(0, 8000, is_double=False)
         self.white_balance_input.setText(str(int(self.current_white_balance)))
 
         self.saturation_slider = self.create_slider(0, 255, self.current_saturation)

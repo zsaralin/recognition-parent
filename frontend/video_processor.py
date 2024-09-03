@@ -102,6 +102,8 @@ class VideoProcessor(QThread):
         self.is_adjusting_exposure = False
         self.cancel_adjustment = False
 
+        self.start_time = time.time()  # Capture the start time
+
     def handle_brightness_check(self):
         """Handles brightness check; only checks if a face has been detected since the last check."""
         if self.face_detected_since_last_check:
@@ -327,8 +329,15 @@ class VideoProcessor(QThread):
 
             self.new_faces.set_cropped_frame(cropped_frame)
 
-            if bbox and config.create_sprites and self.is_stable():
-                send_add_frame_request(cropped_frame, (x, y, w, h))
+            current_time = time.time()
+
+            if bbox:
+                # If the time elapsed is less than 20 seconds, skip sending the frame
+                if current_time - self.start_time >= 20:
+                    if config.create_sprites and self.is_stable():
+                        send_add_frame_request(cropped_frame, (x, y, w, h))
+                else:
+                    logger.info(f"Skipping sending frame for the first 20 seconds. Elapsed time: {current_time - self.start_time:.2f} seconds")
 
             self.apply_text_overlay(resized_frame)  # Apply the current overlay
             self.display_fps(resized_frame)

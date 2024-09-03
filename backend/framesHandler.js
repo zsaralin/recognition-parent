@@ -2,8 +2,8 @@ const {createSpritesheet} = require("./createSpritesheet.js");
 
 let frames = [];
 let bboxes = [];
-let maxFrames = 60 * 19; // Set your desired maximum number of frames
-let minFrames = 16;
+let maxFrames = 50 * 19; // Set your desired maximum number of frames
+let minFrames = 50;
 let spritesheetCreated = false;
 
 function setMaxFrames(newMax) {

@@ -18,7 +18,7 @@ class ImageStore:
         self.sprite_width = 200
         self.executor = ThreadPoolExecutor(max_workers=2)  # Use threads for parallel processing
         self.preloaded_folders = set()  # Track preloaded folders
-
+        self.square_size = None; 
     def preload_images(self, app, base_dir, num_cols=21, memory_threshold=0.95):
         self.base_dir = base_dir
         logger.info('Starting preload images')
@@ -37,12 +37,12 @@ class ImageStore:
         screen_geometry = secondary_screen.geometry()
         largest_screen_width = screen_size.width()
         largest_screen_height = screen_size.height()
-
+        print('hiiii')
         window_width = largest_screen_width // 2 if config.demo else largest_screen_width
         window_height = largest_screen_height
-        square_size = round(window_width / config.num_cols)
-        large_square_size = square_size * 3
-
+        self.square_size = round(window_width / config.num_cols)
+        large_square_size = self.square_size * 3
+        print(self.square_size)
         total_images = 0
         preloaded_count = 0
 
@@ -68,8 +68,7 @@ class ImageStore:
                         num_images = self.get_num_images_from_filename(file)
                         sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
                         sub_images_with_reversed = sub_images + sub_images[::-1]
-
-                        standard_pixmaps = [self.cv2_to_qpixmap(img, square_size) for img in sub_images_with_reversed]
+                        standard_pixmaps = [self.cv2_to_qpixmap(img, self.square_size) for img in sub_images_with_reversed]
                         large_pixmaps = [self.cv2_to_qpixmap(img, large_square_size) for img in sub_images_with_reversed]
 
                         self.preloaded_images[parent_dir] = {
@@ -186,13 +185,12 @@ class ImageStore:
         num_images = self.get_num_images_from_filename(image_filename)
 
         # Calculate sizes based on the preloading strategy
-        square_size = self.calculate_square_size()
-        large_square_size = square_size * 3
+        large_square_size = self.square_size * 3
 
         sub_images = self.split_into_sub_images(image, self.sprite_width, self.sprite_width, num_images)
         sub_images_with_reversed = sub_images + sub_images[::-1]
 
-        standard_pixmaps = [self.cv2_to_qpixmap(img, square_size) for img in sub_images_with_reversed]
+        standard_pixmaps = [self.cv2_to_qpixmap(img,  self.square_size ) for img in sub_images_with_reversed]
         large_pixmaps = [self.cv2_to_qpixmap(img, large_square_size) for img in sub_images_with_reversed]
 
         if subfolder_name not in self.preloaded_images:
@@ -203,13 +201,6 @@ class ImageStore:
 
         print(f"Added new image to preloaded images under subfolder: {subfolder_name}, both standard and large sizes.")
         return True
-
-    def calculate_square_size(self):
-        app = QGuiApplication.instance()
-        screen_sizes = [(screen.size().width(), screen.size().height()) for screen in app.screens()]
-        largest_screen_width, largest_screen_height = max(screen_sizes, key=lambda s: s[0] * s[1])
-        window_width = largest_screen_width // 2 if config.demo else largest_screen_width
-        return window_width // config.num_cols
 
     def clear_preloaded_images(self):
         """Clear all preloaded images from memory."""

@@ -18,7 +18,7 @@ async function findSimilarImages(descriptor, numVids) {
                     const imagesDir = path.join(baseDir, entry.name, 'spritesheet');
                     const imageFiles = await fs.readdir(imagesDir);
                     const imagePath = imageFiles
-                        .filter(file => path.extname(file).toLowerCase() === '.png') // Filter for JPG files
+                        .filter(file => path.extname(file).toLowerCase() === '.png') // Filter for PNG files
                         .map(file => {
                             const numImages = parseInt(file.split('.')[0], 10);
                             return {
@@ -42,55 +42,54 @@ async function findSimilarImages(descriptor, numVids) {
     // Sort images by distance
     images.sort((a, b) => a.distance - b.distance);
 
-    // Select the top `numVids/2` most similar images
-    let mostSimilar = images.slice(0, Math.ceil(numVids / 2));
+    // Calculate the actual number of images to use
+    const actualNumVids = Math.min(images.length, numVids);
 
-    // Select the top `numVids/2` least similar images
-    let leastSimilar = images.slice(-Math.floor(numVids / 2)).reverse();
+    // Set `mostSimilar` to the first half of the available images, sorted from smallest to largest distance
+    let mostSimilar = images.slice(0, Math.ceil(actualNumVids / 2));
 
-    let finalMostSimilar = [...mostSimilar];
-    let finalLeastSimilar = [...leastSimilar];
+    // Set `leastSimilar` to the last half of the available images, sorted from largest to smallest distance
+    let leastSimilar = images.slice(-Math.floor(actualNumVids / 2)).reverse();
 
-    // Calculate how many more images are needed
-    const remainingImagesCount = numVids - (finalMostSimilar.length + finalLeastSimilar.length);
+    // If more images are needed, fill up with duplicates
+    const remainingMost = Math.ceil(numVids / 2) - mostSimilar.length;
+    const remainingLeast = Math.floor(numVids / 2) - leastSimilar.length;
 
-    if (remainingImagesCount > 0) {
-        // Determine how many duplicates for each (most similar and least similar)
-        const duplicatesForMost = Math.floor(remainingImagesCount / 2);
-        const duplicatesForLeast = remainingImagesCount - duplicatesForMost; // Remaining goes to least similar
-
-        // Distribute duplicates among available most similar images
-        const mostSimilarDuplicates = distributeDuplicates(mostSimilar, duplicatesForMost);
-
-        // Distribute duplicates among available least similar images
-        const leastSimilarDuplicates = distributeDuplicates(leastSimilar, duplicatesForLeast);
-
-        finalMostSimilar = finalMostSimilar.concat(mostSimilarDuplicates);
-        finalLeastSimilar = finalLeastSimilar.concat(leastSimilarDuplicates);
+    if (remainingMost > 0) {
+        mostSimilar = mostSimilar.concat(distributeDuplicates(mostSimilar, remainingMost, false));
+    }
+    if (remainingLeast > 0) {
+        leastSimilar = leastSimilar.concat(distributeDuplicates(leastSimilar, remainingLeast, true));
     }
 
-    // Ensure that the total number of images is exactly numVids
-    finalMostSimilar = finalMostSimilar.slice(0, Math.ceil(numVids / 2));
-    finalLeastSimilar = finalLeastSimilar.slice(0, Math.floor(numVids / 2));
+    // Sort the final lists by distance to ensure order
+    mostSimilar.sort((a, b) => a.distance - b.distance);
+    leastSimilar.sort((a, b) => b.distance - a.distance);  // Reverse order for leastSimilar
 
-    return { mostSimilar: finalMostSimilar, leastSimilar: finalLeastSimilar };
+    return { mostSimilar: mostSimilar, leastSimilar: leastSimilar };
 }
 
-function distributeDuplicates(imageArray, numberOfDuplicates) {
+function removeDuplicates(mainArray, otherArray) {
+    return mainArray.filter(item1 => !otherArray.some(item2 => item1.path === item2.path));
+}
+
+function distributeDuplicates(imageArray, numberOfDuplicates, reverseOrder = false) {
     const duplicates = [];
+    const baseIncrement = 0.0001; // Small enough to maintain order
+    const increment = reverseOrder ? -baseIncrement : baseIncrement;
+
     for (let i = 0; i < numberOfDuplicates; i++) {
         const imageIndex = i % imageArray.length;
-        duplicates.push({
-            ...imageArray[imageIndex],
-            distance: generateRandomDistance(imageArray[imageIndex].distance),
-        });
+        const image = imageArray[imageIndex];
+        if (image) { // Ensure the image is defined before proceeding
+            duplicates.push({
+                path: image.path,               // Retain the original path
+                numImages: image.numImages,     // Retain the original number of images
+                distance: image.distance //+ (i * increment), // Adjust the distance slightly to maintain order
+            });
+        }
     }
     return duplicates;
-}
-
-function generateRandomDistance(baseDistance) {
-    const variation = (Math.random() - 0.5) * 0.2; // +/- 10% variation
-    return baseDistance * (1 + variation);
 }
 
 function euclideanDistance(descriptor1, descriptor2) {

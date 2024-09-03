@@ -107,7 +107,7 @@ class SpriteArranger(QObject):
             print(f"Error: Preloaded sub-images for path {image_path} are None or empty")
             return False
 
-        num_images = sprite_info['numImages']
+        num_images = sprite_info['numImages'] * 2
         arranged_sprites = sub_images[:num_images]
 
         sprites[grid_index].extend(arranged_sprites)

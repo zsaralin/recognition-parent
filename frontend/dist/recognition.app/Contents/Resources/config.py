@@ -24,4 +24,4 @@ auto_exposure= False
 move_threshold = 15
 min_num_ss_frames = 20
 max_num_rows_ss_frames = 19
-min_time_between_spritesheet = 2.0
+min_time_between_spritesheet = 0

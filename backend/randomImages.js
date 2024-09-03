@@ -6,6 +6,12 @@ async function getRandomImages(numVids) {
     const entries = await fs.readdir(baseDir, { withFileTypes: true });
     let directories = entries.filter(entry => entry.isDirectory()).map(dir => dir.name);
 
+    // If there are fewer directories than numVids, duplicate some randomly to ensure enough directories
+    while (directories.length < numVids) {
+        const randomDirIndex = Math.floor(Math.random() * directories.length);
+        directories.push(directories[randomDirIndex]);  // Duplicate a random directory
+    }
+
     let selectedImages = [];
     while (selectedImages.length < numVids && directories.length > 0) {
         const randomDirIndex = Math.floor(Math.random() * directories.length);
@@ -15,7 +21,7 @@ async function getRandomImages(numVids) {
         const imagesDir = path.join(baseDir, selectedDir, 'spritesheet');
         try {
             const imageFiles = await fs.readdir(imagesDir);
-            const jpgFiles = imageFiles.filter(file => path.extname(file).toLowerCase() === '.jpg');
+            const jpgFiles = imageFiles.filter(file => path.extname(file).toLowerCase() === '.png');
 
             if (jpgFiles.length > 0) {
                 shuffleArray(jpgFiles);
@@ -30,6 +36,7 @@ async function getRandomImages(numVids) {
             console.error(`Error accessing images in ${imagesDir}:`, error);
         }
     }
+
     return {
         mostSimilar: selectedImages.slice(0, Math.ceil(numVids / 2)),
         leastSimilar: selectedImages.slice(-Math.ceil(numVids / 2)).reverse()
