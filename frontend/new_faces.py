@@ -107,7 +107,7 @@ class NewFaces:
 
     def set_curr_face(self, mediapipe_result, frame, callback):
         current_time = time.time()
-
+        print(mediapipe_result.detections)
         if mediapipe_result and mediapipe_result.detections:
             self.mediapipe_last_detection_time = current_time
             self.mediapipe_valid_detection = True
@@ -121,7 +121,7 @@ class NewFaces:
             # Find the closest face to the last known face position
             closest_face = self.get_closest_face(mediapipe_result.detections)
             bbox = self.extract_bbox(closest_face)
-
+            
             # Check the confidence score of the detected face
             confidence_score = closest_face.score[0]  # Assuming score is a list with one element
             if confidence_score < config.confidence_score:

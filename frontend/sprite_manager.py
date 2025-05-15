@@ -271,8 +271,8 @@ class SpriteManager(QObject):
                 updates_done += 1
 
         self.sprites_updated.emit()
-        self.update_most_similar()
-        self.update_least_similar()
+        # self.update_most_similar()
+        # self.update_least_similar()
 
         if self.current_most_index < len(self.most_similar_indices) or self.current_least_index < len(self.least_similar_indices):
             QTimer.singleShot(config.update_delay, self.update_next_sprites)

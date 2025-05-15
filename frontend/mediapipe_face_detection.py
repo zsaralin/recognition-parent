@@ -17,6 +17,9 @@ class MediaPipeFaceDetection:
     def detect_faces(self, frame, callback):
         if frame is None or frame.size == 0:
             return
+        # cv2.imshow("Raw Frame", frame)
+        # cv2.waitKey(1)
+
         results = self.face_detection.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         closest_face = None
         min_distance = float('inf')
@@ -124,6 +127,6 @@ class MediaPipeFaceDetection:
         ratio = nose_to_midpoint / eye_distance
         # Threshold for determining if the face is turned more than 90 degrees
         # This value may need adjustment based on testing
-        threshold = 0.75
+        threshold = 0.6
         is_facing_forward = ratio < threshold
         return is_facing_forward

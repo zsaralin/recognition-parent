@@ -1,62 +1,74 @@
 Now using node v16.20.2 (npm v8.19.4)
 Server is running on http://localhost:3000
-objc[1069]: Class GNotificationCenterDelegate is implemented in both /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.42.dylib (0x11e565a28) and /opt/homebrew/Cellar/glib/2.80.4/lib/libgio-2.0.0.dylib (0x108d946b0). One of the two will be used. Which one is undefined.
-8
-Error setting exposure mode to automatic: Error: USB device not found with vid 0xbda, pid 0x3039
-    at UVCControl.getControlParams (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:139:21)
-    at UVCControl.set (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:187:8)
-    at setCameraControl (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:14:16)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:124:5
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
-    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
-    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
-Error setting autoExposureMode: Error: USB device not found with vid 0xbda, pid 0x3039
-    at UVCControl.getControlParams (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:139:21)
-    at UVCControl.set (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:187:8)
-    at setCameraControl (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:14:16)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:124:5
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
-    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
-    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
-1
-Error setting exposure mode to manual: Error: USB device not found with vid 0xbda, pid 0x3039
-    at UVCControl.getControlParams (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:139:21)
-    at UVCControl.set (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:187:8)
-    at setCameraControl (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:14:16)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:124:5
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
-    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
-    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
-Error setting autoExposureMode: Error: USB device not found with vid 0xbda, pid 0x3039
-    at UVCControl.getControlParams (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:139:21)
-    at UVCControl.set (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/uvc-control/index.js:187:8)
-    at setCameraControl (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:14:16)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:124:5
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
-    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
-    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
-140
-Cannot set exposure time because the camera is not in manual mode.
-Error setting absoluteExposureTime: Error: Cannot set exposure time because the camera is not in manual mode.
-    at setCameraControl (/Users/admin/Desktop/recognition/recognition-parent/backend/uvcControl.js:26:27)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:124:5
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:149:13)
-    at Route.dispatch (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/route.js:119:3)
-    at Layer.handle [as handle_request] (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/layer.js:95:5)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:284:15
-    at Function.process_params (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:346:12)
-    at next (/Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/express/lib/router/index.js:280:10)
-    at /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/body-parser/lib/read.js:137:5
+objc[1094]: Class GNotificationCenterDelegate is implemented in both /Users/admin/Desktop/recognition/recognition-parent/backend/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.42.dylib (0x10ea59a28) and /opt/homebrew/Cellar/glib/2.82.4/lib/libgio-2.0.0.dylib (0x108e306c0). One of the two will be used. Which one is undefined.
+Error accessing images in /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-17-14-58-999/spritesheet: Error: ENOENT: no such file or directory, scandir '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-17-14-58-999/spritesheet'
+    at async Object.readdir (node:internal/fs/promises:948:18)
+    at async getRandomImages (/Users/admin/Desktop/recognition/recognition-parent/backend/randomImages.js:23:32)
+    at async /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:72:47 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-17-14-58-999/spritesheet'
+}
+Error accessing images in /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-04-16-02-34-678/spritesheet: Error: ENOENT: no such file or directory, scandir '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-04-16-02-34-678/spritesheet'
+    at async Object.readdir (node:internal/fs/promises:948:18)
+    at async getRandomImages (/Users/admin/Desktop/recognition/recognition-parent/backend/randomImages.js:23:32)
+    at async /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:72:47 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-04-16-02-34-678/spritesheet'
+}
+Error accessing images in /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-13-33-00-646/spritesheet: Error: ENOENT: no such file or directory, scandir '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-13-33-00-646/spritesheet'
+    at async Object.readdir (node:internal/fs/promises:948:18)
+    at async getRandomImages (/Users/admin/Desktop/recognition/recognition-parent/backend/randomImages.js:23:32)
+    at async /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:72:47 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-13-33-00-646/spritesheet'
+}
+Error accessing images in /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-03-11-16-17-07-863/spritesheet: Error: ENOENT: no such file or directory, scandir '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-03-11-16-17-07-863/spritesheet'
+    at async Object.readdir (node:internal/fs/promises:948:18)
+    at async getRandomImages (/Users/admin/Desktop/recognition/recognition-parent/backend/randomImages.js:23:32)
+    at async /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:72:47 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-03-11-16-17-07-863/spritesheet'
+}
+Error accessing images in /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-13-40-55-202/spritesheet: Error: ENOENT: no such file or directory, scandir '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-13-40-55-202/spritesheet'
+    at async Object.readdir (node:internal/fs/promises:948:18)
+    at async getRandomImages (/Users/admin/Desktop/recognition/recognition-parent/backend/randomImages.js:23:32)
+    at async /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:72:47 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-13-40-55-202/spritesheet'
+}
+Error accessing images in /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-04-16-02-30-016/spritesheet: Error: ENOENT: no such file or directory, scandir '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-04-16-02-30-016/spritesheet'
+    at async Object.readdir (node:internal/fs/promises:948:18)
+    at async getRandomImages (/Users/admin/Desktop/recognition/recognition-parent/backend/randomImages.js:23:32)
+    at async /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:72:47 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-04-16-02-30-016/spritesheet'
+}
+Error accessing images in /Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-17-14-35-309/spritesheet: Error: ENOENT: no such file or directory, scandir '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-17-14-35-309/spritesheet'
+    at async Object.readdir (node:internal/fs/promises:948:18)
+    at async getRandomImages (/Users/admin/Desktop/recognition/recognition-parent/backend/randomImages.js:23:32)
+    at async /Users/admin/Desktop/recognition/recognition-parent/backend/server.js:72:47 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/admin/Desktop/recognition/recognition-parent/databases/database0/X#2025-04-15-17-14-35-309/spritesheet'
+}
+777
+Setting TensorFlow backend...
+TensorFlow backend is ready.
+Loading models from disk...
+Models loaded successfully.
+No face detected with input size: 32
+No face detected with input size: 64
+Face detected with input size: 96

@@ -1,7 +1,14 @@
 const path = require('path');
 const fs = require('fs').promises;
+const DriveCapacity = require('./driveCapacity');
+
+const localRecordingsFolder = './database0';  // Use forward slashes for Unix-like systems
+const limit = 80; // Set your limit for the disk usage percentage
+const driveCapacity = new DriveCapacity(localRecordingsFolder, limit);
 
 async function getAllImagePaths(baseDir) {
+    await driveCapacity.deleteExcess();
+
     const entries = await fs.readdir(baseDir, { withFileTypes: true });
     let imagePaths = [];
 

@@ -40,8 +40,8 @@ class SliderOverlay(QWidget):
         self.cancel_adjustment = False  # Flag to cancel current adjustment loop
 
         # Set manual exposure mode by default
-        self.set_manual_exposure_mode()
-        set_camera_control("absoluteExposureTime", 140)
+        # self.set_manual_exposure_mode()
+        # set_camera_control("absoluteExposureTime", 140)
     def initUI(self):
         wrapper = QWidget()
         wrapper.setStyleSheet("background-color: lightpink; padding: 5px;")

@@ -98,7 +98,7 @@ app.post('/addFrame', async (req, res) => {
     const { frame, bbox } = req.body;
 
     try {
-        await addFrame(frame, bbox);
+        addFrame(frame, bbox);
         res.status(200).json({ success: true, message: 'Frame added' });
     } catch (error) {
         console.error('Error adding frame:', error);
@@ -116,23 +116,25 @@ app.post('/noFaceDetected', async (req, res) => {
 });
 
 app.post('/set-camera-control', (req, res) => {
-    const { controlName, value } = req.body;
-    if (!controlName || value === undefined) {
-        return res.status(400).send('Missing control name or value');
-    }
+    return true
+    // const { controlName, value } = req.body;
+    // if (!controlName || value === undefined) {
+    //     return res.status(400).send('Missing control name or value');
+    // }
 
-    setCameraControl(controlName, value, (err) => {
-        if (err) {
-            console.error(`Error setting ${controlName}:`, err);
-            return res.status(500).send(`Error setting ${controlName}`);
-        } else {
-            return res.send(`${controlName} set to ${value}`);
-        }
-    });
+    // setCameraControl(controlName, value, (err) => {
+    //     if (err) {
+    //         console.error(`Error setting ${controlName}:`, err);
+    //         return res.status(500).send(`Error setting ${controlName}`);
+    //     } else {
+    //         return res.send(`${controlName} set to ${value}`);
+    //     }
+    // });
 });
 
 // Route for getting the current exposure time
 app.get('/get-exposure-time', (req, res) => {
+    return true
     getCurrentExposureTime((err, value) => {
         if (err) {
             console.error("Error getting current exposure time:", err);

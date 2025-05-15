@@ -9,7 +9,9 @@ class DriveCapacity {
     }
 
     async deleteExcess() {
+        console.log('hayyasdasd')
         const diskFull = await this.checkCapacity(this.limit);
+        console.log(diskFull)
         if (diskFull) {
             console.log("Disk is full");
             console.log(`Local recordings folder: ${this.localRecordingsFolder}`);
@@ -34,6 +36,7 @@ class DriveCapacity {
     }
 
     async checkCapacity(maxUsed) {
+        return false;
         const usage = await this.myExec('df -H /');
         const usedPercentage = this.extractUsedPercentage(usage);
         const tooFull = usedPercentage >= maxUsed;

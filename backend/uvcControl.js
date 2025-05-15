@@ -1,9 +1,11 @@
 const UVCControl = require('uvc-control');
 
-let camera = new UVCControl(0x0BDA, 0x3039, {
-    processingUnitId: 0x02,
-    camNum: 0,
-});
+let camera = new UVCControl(
+    // 0x0BDA, 0x3039, {
+    // processingUnitId: 0x02,
+    // camNum: 0,
+// }
+);
 
 let isManualExposureMode = false; // Track the current exposure mode
 

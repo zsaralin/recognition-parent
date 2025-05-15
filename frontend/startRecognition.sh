@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Delay for 20 seconds
-sleep 10
+sleep 30
 
 # Source nvm script to make nvm command available
 export NVM_DIR="$HOME/.nvm"

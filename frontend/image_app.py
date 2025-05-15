@@ -202,8 +202,7 @@ class ImageApp(QWidget):
             sprite = self.sprite_manager.get_sprite(index)
             if sprite:
                 cell.setPixmap(sprite)
-            else:
-                cell.clear()  # Clear the cell if no sprite is available
+            
 
     def load_sprites(self, most_similar, least_similar):
         self.sprite_manager.load_sprites(most_similar, least_similar)

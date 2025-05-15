@@ -14,6 +14,9 @@ function setMinFrames(newMin) {
     minFrames = newMin;
 }
 async function addFrame(frame, bbox) {
+    if(spritesheetCreated){
+        return
+    }
     if (!frame || !bbox) {
         throw new Error('Frame and bbox are required');
     }

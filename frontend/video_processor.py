@@ -91,9 +91,9 @@ class VideoProcessor(QThread):
         self.overlay_image = None
 
         # Timer to check brightness every minute
-        self.brightness_timer = QTimer(self)
-        self.brightness_timer.timeout.connect(self.handle_brightness_check)
-        self.brightness_timer.start(10000)  # Check brightness every 3 seconds
+        # self.brightness_timer = QTimer(self)
+        # self.brightness_timer.timeout.connect(self.handle_brightness_check)
+        # self.brightness_timer.start(10000)  # Check brightness every 3 seconds
 
         # Flag to indicate if a face has been detected since the last brightness check
         self.face_detected_since_last_check = False
@@ -101,6 +101,10 @@ class VideoProcessor(QThread):
         # Exposure adjustment variables
         self.is_adjusting_exposure = False
         self.cancel_adjustment = False
+
+        self.zoom_out_step = 2  # How much to zoom out per frame
+        self.current_zoom_size = None
+        self.max_zoom_size = None  # Maximum zoom size, i.e., the full frame size
 
         self.start_time = time.time()  # Capture the start time
 
@@ -121,55 +125,55 @@ class VideoProcessor(QThread):
             brightness = np.mean(gray_frame)
             print(f"Average brightness of the cropped frame: {brightness:.2f}")
 
-            if config.auto_ev:
-                self.adjust_exposure_based_on_brightness(brightness)
+            # if config.auto_ev:
+            #     self.adjust_exposure_based_on_brightness(brightness)
 
     def adjust_exposure_based_on_brightness(self, current_brightness):
         """Adjusts the exposure time based on the current brightness level."""
-        if self.is_adjusting_exposure:
-            # Skip this execution if an adjustment is already in progress
-            return
+        # if self.is_adjusting_exposure:
+        #     # Skip this execution if an adjustment is already in progress
+        #     return
 
-        self.is_adjusting_exposure = True
-        self.cancel_adjustment = False  # Reset the cancel flag
-        target_brightness = config.brightness
+        # self.is_adjusting_exposure = True
+        # self.cancel_adjustment = False  # Reset the cancel flag
+        # target_brightness = config.brightness
 
-        def adjust_exposure(current_brightness):
-            if self.cancel_adjustment:
-                # Stop the loop if a new brightness adjustment is requested
-                self.is_adjusting_exposure = False
-                return
+        # def adjust_exposure(current_brightness):
+        #     if self.cancel_adjustment:
+        #         # Stop the loop if a new brightness adjustment is requested
+        #         self.is_adjusting_exposure = False
+        #         return
 
-            # Calculate the difference between current and target brightness
-            brightness_difference = target_brightness - current_brightness
+        #     # Calculate the difference between current and target brightness
+        #     brightness_difference = target_brightness - current_brightness
 
-            # Determine step size based on the brightness difference
-            step_size = max(5, abs(brightness_difference) // 5)  # Larger steps for larger differences, minimum step of 5
+        #     # Determine step size based on the brightness difference
+        #     step_size = max(5, abs(brightness_difference) // 5)  # Larger steps for larger differences, minimum step of 5
 
-            current_exposure = get_camera_control('absoluteExposureTime')
-            print(f"Brightness difference: {brightness_difference}, Step size: {step_size}")
+        #     current_exposure = get_camera_control('absoluteExposureTime')
+        #     print(f"Brightness difference: {brightness_difference}, Step size: {step_size}")
 
-            if brightness_difference > 15 and current_exposure < 1200:  # Cap at 1200
-                # Increase exposure time based on the step size, but cap it at 1200
-                new_exposure = min(current_exposure + step_size, 1200)
-                set_camera_control('absoluteExposureTime', new_exposure)
-            elif brightness_difference < -15 and current_exposure > 1:
-                # Decrease exposure time based on the step size
-                new_exposure = max(current_exposure - step_size, 1)
-                set_camera_control('absoluteExposureTime', new_exposure)
-            else:
-                # Exit the loop if brightness is within the desired range
-                self.is_adjusting_exposure = False
-                return
+        #     if brightness_difference > 15 and current_exposure < 1200:  # Cap at 1200
+        #         # Increase exposure time based on the step size, but cap it at 1200
+        #         new_exposure = min(current_exposure + step_size, 1200)
+        #         set_camera_control('absoluteExposureTime', new_exposure)
+        #     elif brightness_difference < -15 and current_exposure > 1:
+        #         # Decrease exposure time based on the step size
+        #         new_exposure = max(current_exposure - step_size, 1)
+        #         set_camera_control('absoluteExposureTime', new_exposure)
+        #     else:
+        #         # Exit the loop if brightness is within the desired range
+        #         self.is_adjusting_exposure = False
+        #         return
 
-            # Fetch the updated brightness after changing exposure
-            updated_brightness = self.get_updated_brightness()
+        #     # Fetch the updated brightness after changing exposure
+        #     updated_brightness = self.get_updated_brightness()
 
-            # Delay the next adjustment by 500 ms
-            QTimer.singleShot(2000, lambda: adjust_exposure(updated_brightness))
+        #     # Delay the next adjustment by 500 ms
+        #     QTimer.singleShot(2000, lambda: adjust_exposure(updated_brightness))
 
-        # Start the adjustment process
-        adjust_exposure(current_brightness)
+        # # Start the adjustment process
+        # adjust_exposure(current_brightness)
 
     def get_updated_brightness(self):
         """Calculates the brightness of the current frame."""
@@ -245,49 +249,41 @@ class VideoProcessor(QThread):
             if frame is None or frame.size == 0:
                 logger.error("No valid frame available. Retrying...")
                 return
+            frame = cv2.flip(frame, 1)  # Flip along the vertical axis to create a mirror effect
+            # frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)  # Rotate the frame 90 degrees clockwise
 
-            # Flip the frame vertically if not in demo mode
-            if not config.demo:
-                frame = cv2.flip(frame, 0)
-
-            # Apply rotation if a rotation angle is set
-            if config.rotation_angle != 0:
-                if config.rotation_angle == 90:
-                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
-                elif config.rotation_angle == 180:
-                    frame = cv2.rotate(frame, cv2.ROTATE_180)
-                elif config.rotation_angle == 270:
-                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
-
-            # Mirror the frame horizontally if the mirror option is enabled
-            if config.mirror:
-                frame = cv2.flip(frame, 1)
+            # Keep the original frame intact for zooming out
+            original_frame = frame.copy()
 
             # Detect faces in the frame
-            original_frame = frame.copy()
             frame, bbox = self.face_detector.detect_faces(frame, self.callback)
 
-            current_time = time.time()
-
             if bbox:
+                # Face detected, smoothly zoom into the bounding box size
                 x, y, w, h = bbox
                 cx, cy = x + w // 2, y + h // 2
 
                 w = int(w * config.bbox_multiplier)
                 h = int(h * config.bbox_multiplier)
 
-                filtered_cx = self.euro_filter_cx.filter(cx, current_time)
-                filtered_cy = self.euro_filter_cy.filter(cy, current_time)
-                filtered_w = self.euro_filter_w.filter(w, current_time)
-                filtered_h = self.euro_filter_h.filter(h, current_time)
+                # Filter the zoom-in size and position using One Euro filters
+                filtered_cx = self.euro_filter_cx.filter(cx, time.time())
+                filtered_cy = self.euro_filter_cy.filter(cy, time.time())
+                filtered_w = self.euro_filter_w.filter(w, time.time())
+                filtered_h = self.euro_filter_h.filter(h, time.time())
 
                 filtered_w = max(1, int(filtered_w))
                 filtered_h = max(1, int(filtered_h))
                 filtered_cx = int(filtered_cx)
                 filtered_cy = int(filtered_cy)
 
+                forehead_offset = int(filtered_h * 0.1)  # Move the crop 20% of the face height lower
+                filtered_cy -= forehead_offset  # Lower the crop by the forehead offset
+
+                # Store the last known cropped position for smooth transitions
                 self.last_cropped_position = (filtered_cx, filtered_cy, filtered_w, filtered_h)
                 self.no_face_counter = 0
+
 
                 # Update position history
                 self.position_history.append((filtered_cx, filtered_cy))
@@ -304,53 +300,81 @@ class VideoProcessor(QThread):
                 elif not self.is_stable():
                     self.new_faces.treat_as_no_face_detected()
 
-                # Set the flag indicating a face was detected
-                self.face_detected_since_last_check = True
+                self.current_zoom_size = max(filtered_w, filtered_h)
+
+                cropped_frame = self.extract_frame(original_frame, self.current_zoom_size, self.current_zoom_size, filtered_cx, filtered_cy)
 
             else:
+                # No face detected: start or continue zooming out
                 self.no_face_counter += 1
-                self.consistent_detection_counter = 0  # Reset if no face is detected
-                self.position_history.clear()  # Clear position history when no face is detected
-                if self.no_face_counter > 50:  # No face detected for a while, reset last known position
-                    if self.saved_frame is not None and config.show_saved_frame:
-                        frame = self.saved_frame
+                if self.no_face_counter <= 50:
+                    # Show the last known cropped position
+                    if self.last_cropped_position:
+                        filtered_cx, filtered_cy, filtered_w, filtered_h = self.last_cropped_position
+                        cropped_frame = self.extract_frame(original_frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
                     else:
-                        logger.info("No saved frame available or not showing saved frame. Continuing with normal processing.")
-
-            if self.last_cropped_position:
-                filtered_cx, filtered_cy, filtered_w, filtered_h = self.last_cropped_position
-            else:
-                h, w = original_frame.shape[:2]
-                filtered_cx, filtered_cy, filtered_w, filtered_h = w // 2, h // 2, w, h  # This case should rarely be reached now
-
-            cropped_frame = self.extract_frame(frame, filtered_w, filtered_h, filtered_cx, filtered_cy)
-
-            resized_frame = self.resize_to_square(cropped_frame, self.square_size)
-
-            self.new_faces.set_cropped_frame(cropped_frame)
-
-            current_time = time.time()
-
-            if bbox:
-                # If the time elapsed is less than 20 seconds, skip sending the frame
-                if current_time - self.start_time >= 20:
-                    if config.create_sprites and self.is_stable():
-                        send_add_frame_request(cropped_frame, (x, y, w, h))
+                        # If no previous face was detected, show the center of the frame
+                        h, w = original_frame.shape[:2]
+                        cropped_frame = self.extract_frame(original_frame, self.square_size, self.square_size, w // 2, h // 2)
                 else:
-                    logger.info(f"Skipping sending frame for the first 20 seconds. Elapsed time: {current_time - self.start_time:.2f} seconds")
+                    # After 50 frames without a face, start zooming out
+                    cropped_frame = self.zoom_out(original_frame)
 
-            self.apply_text_overlay(resized_frame)  # Apply the current overlay
+            # Resize and process the frame for display
+            resized_frame = self.resize_to_square(cropped_frame, self.square_size)
+            if bbox and config.create_sprites and self.is_stable():
+                send_add_frame_request(cropped_frame, (x, y, w, h))
+
+            # Apply text overlays, display FPS, and emit the processed frame
+            self.apply_text_overlay(resized_frame)
             self.display_fps(resized_frame)
             pixmap = self.convert_to_qpixmap(resized_frame)
-            scaled_pixmap = pixmap.scaled(self.square_size, self.square_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.frame_ready.emit(pixmap)
 
-            self.frame_ready.emit(scaled_pixmap)
-            self.cropped_frame_ready.emit(cropped_frame)
-
+            # Store the last cropped frame
             self.last_cropped_frame = cropped_frame
 
         except Exception as e:
             logger.exception(f"Error processing frame: {e}")
+
+    def zoom_out(self, frame):
+        """Gradually zoom out from the last known cropped position, always returning a square crop."""
+        h, w = frame.shape[:2]
+
+        if self.current_zoom_size is None:
+            # Start zoom-out from the last cropped area or from the center if no last position
+            if self.last_cropped_position:
+                _, _, last_w, last_h = self.last_cropped_position
+                self.current_zoom_size = max(last_w, last_h)
+            else:
+                self.current_zoom_size = self.square_size
+
+        # Gradually increase the zoom size to zoom out
+        self.current_zoom_size += self.zoom_out_step
+
+        # Ensure the zoom size doesn't exceed the frame dimensions
+        self.current_zoom_size = min(self.current_zoom_size, min(w, h))
+
+        # Apply One Euro filtering to smooth out the zoom size
+        filtered_w = self.euro_filter_w.filter(self.current_zoom_size, time.time())
+        filtered_h = self.euro_filter_h.filter(self.current_zoom_size, time.time())
+
+        # Ensure the filtered zoom size doesn't exceed frame dimensions
+        filtered_w = min(filtered_w, min(w, h))
+        filtered_h = min(filtered_h, min(w, h))
+
+        # Determine the center point (last face position or center of frame)
+        if self.last_cropped_position:
+            last_cx, last_cy, _, _ = self.last_cropped_position
+            cx, cy = last_cx, last_cy  # Zoom out from the last face position
+        else:
+            cx, cy = w // 2, h // 2  # Default to center if no last position
+
+        crop_w, crop_h = int(filtered_w), int(filtered_h)
+
+        # Ensure the cropping area stays within frame bounds
+        return self.extract_frame(frame, crop_w, crop_h, cx, cy)
+
 
     def extract_frame(self, frame, w, h, cx, cy):
         frame_height, frame_width = frame.shape[:2]

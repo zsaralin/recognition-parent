@@ -167,21 +167,21 @@ def get_camera_control(control_name):
     :param control_name: The name of the camera control to retrieve.
     :return: The value of the camera control if successful, None otherwise.
     """
-    url = f"{BASE_SERVER_URL}/get-camera-control"
+    # url = f"{BASE_SERVER_URL}/get-camera-control"
 
-    try:
-        # Pass the control name as a query parameter
-        response = requests.get(url, params={'controlName': control_name})
-        if response.status_code == 200:
-            control_value = response.text
-            logger.info(f"Current {control_name}: {control_value}")
-            return control_value
-        else:
-            logger.error(f"Error getting {control_name}: {response.status_code}, {response.text}")
-            return None
-    except Exception as e:
-        logger.exception(f"Error sending get-camera-control request to server: {e}")
-        return None
+    # try:
+    #     # Pass the control name as a query parameter
+    #     response = requests.get(url, params={'controlName': control_name})
+    #     if response.status_code == 200:
+    #         control_value = response.text
+    #         logger.info(f"Current {control_name}: {control_value}")
+    #         return control_value
+    #     else:
+    #         logger.error(f"Error getting {control_name}: {response.status_code}, {response.text}")
+    #         return None
+    # except Exception as e:
+    #     logger.exception(f"Error sending get-camera-control request to server: {e}")
+    #     return None
 
         
 def set_camera_control(control_name, value):
@@ -192,23 +192,23 @@ def set_camera_control(control_name, value):
     :param value: The value to set the control to.
     :return: True if the request was successful, False otherwise.
     """
-    url = f"{BASE_SERVER_URL}/set-camera-control"
-    payload = {
-        'controlName': control_name,
-        'value': value
-    }
-
-    try:
-        response = requests.post(url, json=payload)
-        if response.status_code == 200:
-            logger.info(f"Successfully set {control_name} to {value}")
-            return True
-        else:
-            logger.error(f"Error setting {control_name}: {response.status_code}, {response.text}")
-            return False
-    except Exception as e:
-        logger.exception(f"Error sending set-camera-control request to server: {e}")
-        return False
+    # url = f"{BASE_SERVER_URL}/set-camera-control"
+    # payload = {
+    #     'controlName': control_name,
+    #     'value': value
+    # }
+# 
+    # try:
+    #     response = requests.post(url, json=payload)
+    #     if response.status_code == 200:
+    #         logger.info(f"Successfully set {control_name} to {value}")
+    #         return True
+    #     else:
+    #         logger.error(f"Error setting {control_name}: {response.status_code}, {response.text}")
+    #         return False
+    # except Exception as e:
+    #     logger.exception(f"Error sending set-camera-control request to server: {e}")
+    #     return False
 
 
 def update_min_frames(min_frames):

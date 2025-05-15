@@ -2,7 +2,7 @@ from setuptools import setup
 
 APP = ['recognition.py']
 OPTIONS = {
-    'packages': ['PyQt5', 'cv2', 'requests', 'mediapipe', 'httpx', 'psutil'],
+    'packages': ['PyQt5', 'opencv2', 'requests', 'mediapipe', 'httpx', 'psutil'],
     'plist': {
         'NSCameraUsageDescription': 'This app requires access to the camera.'
     },
